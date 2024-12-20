@@ -22,7 +22,7 @@ This repository contains the codebase for a **Maternal Support Communication Web
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/your-username/maternal-support-app.git
+   git clone https://github.com/aduuuna/Devpost-MediHacks.git
    cd maternal-support-app
    ```
 
