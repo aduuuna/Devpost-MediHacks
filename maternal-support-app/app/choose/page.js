@@ -40,8 +40,9 @@ export default function ChoosePage() {
                     alignItems: "center",
                     justifyContent: "center", 
                     gap: "60px", 
-                    minHeight: "50vh",
-                    gab: 4,
+                    
+                    minHeight: "50vh"
+                    
                 }}
             >
                 <Typography
@@ -87,8 +88,7 @@ export default function ChoosePage() {
                         href="/speak">
                           <MicIcon sx={{ fontSize: 70, color: "black"}} /> 
                         </Button>
-                        {/* <MicIcon sx={{ fontSize: 70, color: 'black' }} /> */}
-
+                      
                     </Box>
                     <Box
                         sx={{
