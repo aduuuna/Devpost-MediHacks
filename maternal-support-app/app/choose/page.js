@@ -40,7 +40,6 @@ export default function ChoosePage() {
                     alignItems: "center",
                     justifyContent: "center", 
                     gap: "60px", 
-                    
                     minHeight: "50vh"
                     
                 }}
@@ -66,8 +65,8 @@ export default function ChoosePage() {
                 >
                     <Box
                         sx={{
-                            width: 200,          
-                            height: 200,         
+                            width: 150,          
+                            height: 150,         
                             backgroundColor: "#D87093",  
                             borderRadius: "50%",  
                             display: "flex",     
@@ -92,8 +91,8 @@ export default function ChoosePage() {
                     </Box>
                     <Box
                         sx={{
-                            width: 200,           
-                            height: 200,          
+                            width: 150,           
+                            height: 150,          
                             backgroundColor: "#D87093",  
                             borderRadius: "50%",  
                             display: "flex",      
