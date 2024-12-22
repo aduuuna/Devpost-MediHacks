@@ -12,6 +12,7 @@
     "@clerk/nextjs": "^6.9.6",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.0",
+    "@mui/icons-material": "^6.2.1",
     "@mui/material": "^6.2.1",
     "next": "15.1.2",
     "react": "^19.0.0",

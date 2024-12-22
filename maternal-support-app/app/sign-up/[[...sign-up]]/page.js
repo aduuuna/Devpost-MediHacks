@@ -9,7 +9,7 @@ export default function SignUpPage() {
       flexDirection="column"
       justifyContent="center"
       alignItems="center"
-      sx={{ minHeight: "100vh", backgroundColor: "#FAEBEFFF" }}
+      sx={{ minHeight: "100vh", backgroundColor: "#E6E6FA" }}
     >
       <Box
         sx={{

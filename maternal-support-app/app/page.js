@@ -8,7 +8,7 @@ import {
   Typography,
   Button,
   Box,
-  Avatar
+ 
 } from "@mui/material";
 
 
@@ -106,8 +106,8 @@ export default function Home() {
           <Typography
             variant="body1"
             sx={{
-              color: "#333", // Dark text for readability
-              lineHeight: "1.9", // Adjusts line spacing for readability
+              color: "#333",
+              lineHeight: "1.9", 
               transition: "color 0.3s ease, transform 0.3s ease", 
               "&:hover": {
                 transform: "scale(1.1)", 
@@ -118,23 +118,44 @@ export default function Home() {
             A platform designed to assist and guide pregnant women through their 
             maternal journey. Get personalized support anytime, anywhere!
           </Typography>
-
-          <Button
-            variant="contained"
-            sx={{
-              backgroundColor: "#4682B4", // Primary button color
-              color: "#fff", // White text
-              padding: "10px 20px",
-              fontWeight: "bold",
-              textTransform: "none", // Keeps text casing as is
-              borderRadius: "8px",
-              "&:hover": {
-                backgroundColor: "#D87093", // Light pink on hover
-              },
-            }}
-          >
-            Get Started
-          </Button>
+          <SignedIn>
+            <Button
+              variant="contained"
+              sx={{
+                backgroundColor: "#D87093", 
+                color: "#fff", 
+                padding: "10px 20px",
+                fontWeight: "bold",
+                textTransform: "none", 
+                borderRadius: "8px",
+                "&:hover": {
+                  backgroundColor: "#4682B4", 
+                },
+              }}
+              href="/choose"
+            >
+              Get Started
+            </Button>
+          </SignedIn>
+          <SignedOut>
+            <Button
+              variant="contained"
+              sx={{
+                backgroundColor: "#D87093", 
+                color: "#fff", 
+                padding: "10px 20px",
+                fontWeight: "bold",
+                textTransform: "none", 
+                borderRadius: "8px",
+                "&:hover": {
+                  backgroundColor:  "#4682B4", 
+                },
+              }}
+              href="/sign-up"
+            >
+              Sign Up to Get Started
+            </Button>
+          </SignedOut>
         </Box>
             {/* Footer Section */}
         <Box
