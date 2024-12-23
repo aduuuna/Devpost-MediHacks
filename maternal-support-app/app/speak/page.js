@@ -1,180 +1,162 @@
 "use client";
 import React, { useState, useEffect, useRef } from "react";
-import {
-    Container,
-    Box,
-    Button,
-    Typography,
-    CircularProgress
-} from "@mui/material";
-import logo from "../../public/pregnant.png";
+import { Container, Box, Button, Typography, CircularProgress } from "@mui/material";
 import Image from 'next/image';
 import MicIcon from '@mui/icons-material/Mic';
 import CancelIcon from '@mui/icons-material/Cancel';
-import SpeechRecognition, {useSpeechRecognition} from "react-speech-recognition";
-import { generateResponse } from "../generate/page";
+import logo from "../../public/pregnant.png";
+
+
+const SpeechRecognition = 
+  typeof window !== "undefined" ? window.SpeechRecognition || window.webkitSpeechRecognition : null;
 
 export default function SpeakPage() {
+    
     const [isRecording, setIsRecording] = useState(false);
     const [isProcessing, setIsProcessing] = useState(false);
     const [status, setStatus] = useState("Click on the mic to start recording");
-    const [synth, setSynth] = useState(null);
-    const silenceTimer = useRef(null);
-    const processingRef = useRef(false);
-
-    // Initialize speech synthesis on client side only
+    const [transcript, setTranscript] = useState("");
+    
+    const recognition = useRef(null);
+    const synthesisRef = useRef(null);
+    const silenceTimeoutRef = useRef(null);
+    const isCancelledRef = useRef(false);
+    
+    
     useEffect(() => {
-        if (typeof window !== 'undefined') {
-            setSynth(window.speechSynthesis);
+        if (typeof window !== "undefined") {
+            synthesisRef.current = window.speechSynthesis;
+            
+            if (SpeechRecognition) {
+                recognition.current = new SpeechRecognition();
+                recognition.current.continuous = true;
+                recognition.current.interimResults = true;
+                
+                recognition.current.onresult = (event) => {
+                    if (!isCancelledRef.current) {
+                        const current = event.resultIndex;
+                        const transcriptText = event.results[current][0].transcript;
+                        setTranscript(transcriptText);
+                    }
+                };
+
+                recognition.current.onerror = (event) => {
+                    console.error("Speech recognition error:", event.error);
+                    setStatus("Error in speech recognition. Please try again.");
+                    stopRecording();
+                };
+            }
         }
+        
+        return () => {
+            stopRecording();
+        };
     }, []);
 
-    const {
-        transcript,
-        listening,
-        resetTranscript,
-        browserSupportsSpeechRecognition
-    } = useSpeechRecognition();
-
-    // Debug logging
     useEffect(() => {
-        console.log("Current transcript:", transcript);
-        console.log("Is listening:", listening);
-    }, [transcript, listening]);
-
-    // Handle speech detection and silence
-    useEffect(() => {
-        if (isRecording && transcript && !processingRef.current) {
-            // Clear existing timer when new speech is detected
-            if (silenceTimer.current) {
-                clearTimeout(silenceTimer.current);
+        if (isRecording && transcript && !isProcessing && !isCancelledRef.current) {
+            if (silenceTimeoutRef.current) {
+                clearTimeout(silenceTimeoutRef.current);
             }
 
-            setStatus("Listening...");
-
-            // Set new timer for silence detection (reduced to 3 seconds)
-            silenceTimer.current = setTimeout(async () => {
-                if (transcript && !processingRef.current) {
-                    try {
-                        processingRef.current = true;
-                        setIsProcessing(true);
-                        setStatus("Processing your question...");
-
-                        const aiResponse = await generateResponse(transcript);
-                        
-                        if (aiResponse) {
-                            setStatus("Responding...");
-
-                            if (synth) {
-                                // Cancel any ongoing speech
-                                synth.cancel();
-
-                                const utterance = new SpeechSynthesisUtterance(aiResponse);
-                                
-                                utterance.onend = () => {
-                                    processingRef.current = false;
-                                    setIsProcessing(false);
-                                    if (isRecording) {
-                                        setStatus("Listening...");
-                                        resetTranscript();
-                                    } else {
-                                        setStatus("Click on the mic to start recording");
-                                    }
-                                };
-
-                                utterance.onerror = () => {
-                                    console.error("Speech synthesis error");
-                                    setStatus("Error in speech synthesis. Please try again.");
-                                    processingRef.current = false;
-                                    setIsProcessing(false);
-                                };
-                                
-                                synth.speak(utterance);
-                            }
-                        }
-                    } catch (error) {
-                        console.error("Error generating response:", error);
-                        setStatus("Error occurred. Please try again.");
-                        processingRef.current = false;
-                        setIsProcessing(false);
-                    }
+            silenceTimeoutRef.current = setTimeout(async () => {
+                if (transcript && !isCancelledRef.current) {
+                    await processAndRespond(transcript);
                 }
-            }, 3000); // Reduced to 3 seconds silence timer
+            }, 5000);
         }
 
         return () => {
-            if (silenceTimer.current) {
-                clearTimeout(silenceTimer.current);
+            if (silenceTimeoutRef.current) {
+                clearTimeout(silenceTimeoutRef.current);
             }
         };
-    }, [transcript, isRecording, synth, resetTranscript]);
+    }, [transcript, isRecording]);
 
-    const cancellationMessages = [
-        "I'm here whenever you need me. Take care!",
-        "Feel free to return anytime - I'm always here to help.",
-        "Don't hesitate to ask questions when you're ready.",
-        "Looking forward to supporting you when you return.",
-        "Remember, I'm here 24/7 whenever you need support.",
-        "Take your time - I'll be here when you want to chat.",
-        "Wishing you a wonderful day ahead. Come back anytime!",
-        "Your wellbeing matters - I'm here when you need to talk."
-    ];
-    
-    const getRandomCancellationMessage = () => {
-        return cancellationMessages[Math.floor(Math.random() * cancellationMessages.length)];
-    };
+    const processAndRespond = async (text) => {
+        if (isCancelledRef.current) return;
+        
+        try {
+            setIsProcessing(true);
+            setStatus("Processing your message...");
 
-    const handleRecording = async () => {
-        if (isRecording) {
-            // Cancel recording
-            SpeechRecognition.stopListening();
-            setIsRecording(false);
-            setStatus("Click on the mic to start recording");
-            
-            // Clear any existing timers
-            if (silenceTimer.current) {
-                clearTimeout(silenceTimer.current);
+            const response = await fetch("/api/generate", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "text/plain",
+                },
+                body: text,
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
             }
+
+            const data = await response.json();
             
-            // Stop any ongoing speech
-            if (synth) {
-                synth.cancel();
-                const message = getRandomCancellationMessage();
-                const utterance = new SpeechSynthesisUtterance(message);
+            if (data.response && synthesisRef.current && !isCancelledRef.current) {
+                setStatus("Responding...");
+                const utterance = new SpeechSynthesisUtterance(data.response);
+                
                 utterance.onend = () => {
-                    processingRef.current = false;
+                    if (!isCancelledRef.current) {
+                        setIsProcessing(false);
+                        setStatus(isRecording ? "Listening..." : "Click on the mic to start recording");
+                        setTranscript("");
+                    }
+                };
+
+                utterance.onerror = (error) => {
+                    console.error("Speech synthesis error:", error);
+                    setStatus("Error in speech synthesis. Please try again.");
                     setIsProcessing(false);
                 };
-                synth.speak(utterance);
+
+                synthesisRef.current.speak(utterance);
             }
-            
-            resetTranscript();
-            processingRef.current = false;
+        } catch (error) {
+            console.error("Error processing response:", error);
+            setStatus("Error occurred. Please try again.");
             setIsProcessing(false);
-        } else {
-            // Start recording
-            try {
-                await SpeechRecognition.startListening({ continuous: true });
-                setIsRecording(true);
-                setStatus("Listening...");
-                resetTranscript();
-                processingRef.current = false;
-                setIsProcessing(false);
-            } catch (error) {
-                console.error("Error starting speech recognition:", error);
-                setStatus("Error starting recording. Please try again.");
-            }
         }
     };
 
-    // Check browser support
-    if (!browserSupportsSpeechRecognition) {
-        return (
-            <Typography variant="h6" sx={{ textAlign: 'center', padding: 4 }}>
-                Your browser does not support speech recognition. Please use Google Chrome for the best experience.
-            </Typography>
-        );
-    }
+    const startRecording = () => {
+        if (!recognition.current) {
+            setStatus("Speech recognition is not supported in this browser.");
+            return;
+        }
+
+        try {
+            isCancelledRef.current = false;
+            recognition.current.start();
+            setIsRecording(true);
+            setStatus("Listening...");
+            setTranscript("");
+        } catch (error) {
+            console.error("Error starting recording:", error);
+            setStatus("Error starting recording. Please try again.");
+        }
+    };
+
+    const stopRecording = () => {
+        isCancelledRef.current = true;
+        
+        if (recognition.current) {
+            recognition.current.stop();
+        }
+        if (synthesisRef.current) {
+            synthesisRef.current.cancel();
+        }
+        if (silenceTimeoutRef.current) {
+            clearTimeout(silenceTimeoutRef.current);
+        }
+        
+        setIsRecording(false);
+        setIsProcessing(false);
+        setStatus("Click on the mic to start recording");
+        setTranscript("");
+    };
 
     return (
         <Container
@@ -206,7 +188,6 @@ export default function SpeakPage() {
                     minHeight: "60vh",
                 }}
             >
-                {/* Status Box */}
                 <Box
                     sx={{
                         position: 'relative',
@@ -235,12 +216,10 @@ export default function SpeakPage() {
                     )}
                 </Box>
 
-                {/* Logo */}
                 <Box>
                     <Image src={logo} alt="Logo" width={80} height={80} priority />
                 </Box>
 
-                {/* Mic/Cancel Button */}
                 <Box
                     sx={{
                         width: 100,
@@ -250,14 +229,13 @@ export default function SpeakPage() {
                         display: "flex",
                         justifyContent: "center",
                         alignItems: "center",
-                        color: "white",
-                        fontSize: 20,
                         cursor: "pointer",
                         transition: "background-color 0.3s ease"
                     }}
                 >
                     <Button
                         disabled={isProcessing}
+                        onClick={isRecording ? stopRecording : startRecording}
                         sx={{
                             padding: "20px",
                             fontWeight: "bold",
@@ -270,7 +248,6 @@ export default function SpeakPage() {
                                 cursor: 'not-allowed'
                             }
                         }}
-                        onClick={handleRecording}
                     >
                         {isRecording ? (
                             <CancelIcon sx={{ fontSize: 40, color: "black" }} />
