@@ -1,276 +1,261 @@
 "use client";
-import { Container, Box, Typography, Button, CircularProgress, Dialog, DialogTitle, DialogContent, List, ListItem, ListItemText, IconButton, Tooltip } from "@mui/material";
+import React, { useState, useEffect, useRef } from "react";
+import { Container, Box, Button, Typography, CircularProgress } from "@mui/material";
 import MicIcon from '@mui/icons-material/Mic';
-import VolumeUpIcon from '@mui/icons-material/VolumeUp';
-import StopIcon from '@mui/icons-material/Stop';
-import HistoryIcon from '@mui/icons-material/History';
-import CloseIcon from '@mui/icons-material/Close';
+import CancelIcon from '@mui/icons-material/Cancel';
+import PauseIcon from '@mui/icons-material/Pause';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import Navbar from '../components/Navbar';
-import { useState, useEffect } from 'react';
+
+const SpeechRecognition = 
+  typeof window !== "undefined" ? window.SpeechRecognition || window.webkitSpeechRecognition : null;
+
+const goodbyeMessages = [
+    "Thanks for chatting! Have a great day!",
+    "Goodbye! Looking forward to our next conversation!",
+    "Take care! Come back soon!",
+    "It was nice talking to you! See you next time!",
+    "Farewell! Have a wonderful day ahead!"
+];
 
 export default function SpeakPage() {
-    const [status, setStatus] = useState("Click the microphone to start speaking");
-    const [isProcessing, setIsProcessing] = useState(false);
     const [isRecording, setIsRecording] = useState(false);
-    const [audioBlob, setAudioBlob] = useState(null);
-    const [mediaRecorder, setMediaRecorder] = useState(null);
-    const [audioChunks, setAudioChunks] = useState([]);
-    const [isHistoryOpen, setIsHistoryOpen] = useState(false);
-    const [messageHistory, setMessageHistory] = useState([]);
+    const [isPaused, setIsPaused] = useState(false);
+    const [isProcessing, setIsProcessing] = useState(false);
+    const [status, setStatus] = useState("Click on the mic to start recording");
+    const [transcript, setTranscript] = useState("");
+    
+    const recognition = useRef(null);
+    const synthesisRef = useRef(null);
+    const silenceTimeoutRef = useRef(null);
+    const isCancelledRef = useRef(false);
+    
+    const speak = (text) => {
+        if (synthesisRef.current) {
+            const utterance = new SpeechSynthesisUtterance(text);
+            synthesisRef.current.speak(utterance);
+        }
+    };
 
+
+    // Initialize recognition and synthesis
     useEffect(() => {
-        // Cleanup function
-        return () => {
-            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-                mediaRecorder.stop();
+        if (typeof window === "undefined") return;
+
+        synthesisRef.current = window.speechSynthesis;
+        
+        if (!SpeechRecognition) return;
+
+        recognition.current = new SpeechRecognition();
+        recognition.current.continuous = true;
+        recognition.current.interimResults = true;
+        
+        recognition.current.onresult = (event) => {
+            if (!isCancelledRef.current && !isPaused) {
+                const current = event.resultIndex;
+                const transcriptText = event.results[current][0].transcript;
+                setTranscript(transcriptText);
             }
         };
-    }, [mediaRecorder]);
 
-    useEffect(() => {
-        // Load message history from localStorage on component mount
-        const savedHistory = localStorage.getItem('voiceMessageHistory');
-        if (savedHistory) {
-            setMessageHistory(JSON.parse(savedHistory));
-        }
-    }, []);
-
-    const saveToHistory = (blob, timestamp) => {
-        const newMessage = {
-            id: Date.now(),
-            timestamp: timestamp || new Date().toISOString(),
-            audioUrl: URL.createObjectURL(blob),
-            duration: '00:00' // You could calculate actual duration if needed
+        recognition.current.onerror = (event) => {
+            if (event.error === 'aborted' && !isCancelledRef.current && !isPaused) {
+                try {
+                    recognition.current.start();
+                } catch (error) {
+                    console.error("Error restarting recognition:", error);
+                    setStatus("Error in speech recognition. Please try again.");
+                    stopRecording();
+                }
+            } else if (event.error !== 'aborted') {
+                console.error("Speech recognition error:", event.error);
+                setStatus("Error in speech recognition. Please try again.");
+                stopRecording();
+            }
         };
 
-        const updatedHistory = [newMessage, ...messageHistory].slice(0, 50); // Keep last 50 messages
-        setMessageHistory(updatedHistory);
-        localStorage.setItem('voiceMessageHistory', JSON.stringify(updatedHistory));
-    };
-
-    const startRecording = async () => {
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            const recorder = new MediaRecorder(stream);
-            const chunks = [];
-
-            recorder.ondataavailable = (e) => {
-                if (e.data.size > 0) {
-                    chunks.push(e.data);
+        recognition.current.onend = () => {
+            if (!isCancelledRef.current && !isPaused && isRecording) {
+                try {
+                    recognition.current.start();
+                } catch (error) {
+                    console.error("Error restarting recognition:", error);
                 }
-            };
+            }
+        };
+        
+        return () => {
+            stopRecording();
+        };
+    }, []); 
 
-            recorder.onstop = () => {
-                const blob = new Blob(chunks, { type: 'audio/wav' });
-                setAudioBlob(blob);
-                setAudioChunks(chunks);
-                setIsProcessing(true);
-                setStatus("Processing your message...");
-                // Here you would typically send the blob to your API
-                processAudioMessage(blob);
-            };
-
-            recorder.start();
-            setMediaRecorder(recorder);
-            setIsRecording(true);
-            setStatus("Recording... Click stop when finished");
-            setAudioBlob(null);
-
-        } catch (error) {
-            console.error('Error accessing microphone:', error);
-            setStatus("Error accessing microphone. Please check permissions.");
+    // Handle recognition state changes
+    useEffect(() => {
+        if (isRecording && !isPaused && recognition.current) {
+            try {
+                recognition.current.start();
+            } catch (error) {
+                console.error("Error starting recognition:", error);
+            }
+        } else if (recognition.current) {
+            recognition.current.stop();
         }
-    };
+    }, [isRecording, isPaused]);
 
-    const stopRecording = () => {
-        if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-            mediaRecorder.stop();
-            mediaRecorder.stream.getTracks().forEach(track => track.stop());
-            setIsRecording(false);
+    // Handle transcript processing
+    useEffect(() => {
+        if (isRecording && transcript && !isProcessing && !isCancelledRef.current) {
+            if (silenceTimeoutRef.current) {
+                clearTimeout(silenceTimeoutRef.current);
+            }
+
+            silenceTimeoutRef.current = setTimeout(async () => {
+                if (transcript && !isCancelledRef.current) {
+                    await processAndRespond(transcript);
+                }
+            }, 3000);
         }
-    };
 
-    const processAudioMessage = async (blob) => {
+        return () => {
+            if (silenceTimeoutRef.current) {
+                clearTimeout(silenceTimeoutRef.current);
+            }
+        };
+    }, [transcript, isRecording, isProcessing]);
+
+    const processAndRespond = async (text) => {
+        if (isCancelledRef.current) return;
+        
         try {
-            const formData = new FormData();
-            formData.append('audio', blob, 'recording.wav');
-            
-            const response = await fetch('/api/process-audio', {
-                method: 'POST',
-                body: formData,
+            setIsProcessing(true);
+            setStatus("Processing your message...");
+
+            const response = await fetch("/api/generate", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "text/plain",
+                },
+                body: text,
             });
 
             if (!response.ok) {
-                throw new Error('Failed to process audio');
+                throw new Error(`HTTP error! status: ${response.status}`);
             }
 
             const data = await response.json();
-            saveToHistory(blob);
-            setStatus("Message processed! Click listen to hear the response.");
-            setIsProcessing(false);
+            
+            if (data.response && synthesisRef.current && !isCancelledRef.current) {
+                setStatus("Responding...");
+                const utterance = new SpeechSynthesisUtterance(data.response);
+                
+                utterance.onend = () => {
+                    if (!isCancelledRef.current) {
+                        setIsProcessing(false);
+                        setStatus(isRecording ? "Listening..." : "Click on the mic to start recording");
+                        setTranscript("");
+                    }
+                };
 
+                utterance.onerror = (error) => {
+                    console.error("Speech synthesis error:", error);
+                    setStatus("Error in speech synthesis. Please try again.");
+                    setIsProcessing(false);
+                };
+
+                synthesisRef.current.speak(utterance);
+            }
         } catch (error) {
-            console.error('Error processing audio:', error);
-            setStatus("Error processing your message. Please try again.");
+            console.error("Error processing response:", error);
+            setStatus("Error occurred. Please try again.");
             setIsProcessing(false);
         }
     };
 
-    const playResponse = () => {
-        // Implement playback functionality here
-        setStatus("Playing response...");
-        // Example: play audio from response
+    const startRecording = () => {
+        if (!recognition.current) {
+            setStatus("Speech recognition is not supported in this browser.");
+            return;
+        }
+
+        isCancelledRef.current = false;
+        setIsPaused(false);
+        setIsRecording(true);
+        const newStatus = "Listening...";
+        setStatus(newStatus);
+        speak(newStatus);
+        setTranscript("");
+    };
+    
+    const pauseRecording = () => {
+        setIsPaused(true);
+        const newStatus = "Recording paused";
+        setStatus(newStatus);
+        speak(newStatus);
     };
 
-    const playHistoryMessage = (audioUrl) => {
-        const audio = new Audio(audioUrl);
-        audio.play();
+    const resumeRecording = () => {
+        setIsPaused(false);
+        const newStatus = "Listening...";
+        setStatus(newStatus);
+        speak(newStatus);
     };
 
-    const HistoryDialog = () => (
-        <Dialog 
-            open={isHistoryOpen} 
-            onClose={() => setIsHistoryOpen(false)}
-            maxWidth="sm"
-            fullWidth
-        >
-            <DialogTitle sx={{ 
-                display: 'flex', 
-                justifyContent: 'space-between', 
-                alignItems: 'center',
-                bgcolor: '#4682B4',
-                color: 'white'
-            }}>
-                <Typography 
-                    component="div"
-                    sx={{ 
-                        fontSize: '1.25rem',
-                        fontWeight: 'bold'
-                    }}
-                >
-                    Voice Message History
-                </Typography>
-                <IconButton 
-                    onClick={() => setIsHistoryOpen(false)}
-                    sx={{ color: 'white' }}
-                >
-                    <CloseIcon />
-                </IconButton>
-            </DialogTitle>
-            <DialogContent sx={{ mt: 2 }}>
-                {messageHistory.length === 0 ? (
-                    <Typography color="text.secondary" align="center" sx={{ py: 4 }}>
-                        No voice messages yet
-                    </Typography>
-                ) : (
-                    <List>
-                        {messageHistory.map((message) => (
-                            <ListItem 
-                                key={message.id}
-                                secondaryAction={
-                                    <IconButton 
-                                        edge="end" 
-                                        onClick={() => playHistoryMessage(message.audioUrl)}
-                                        sx={{ color: '#4682B4' }}
-                                    >
-                                        <PlayArrowIcon />
-                                    </IconButton>
-                                }
-                                sx={{
-                                    bgcolor: 'rgba(70, 130, 180, 0.1)',
-                                    borderRadius: '8px',
-                                    mb: 1,
-                                    '&:hover': {
-                                        bgcolor: 'rgba(70, 130, 180, 0.2)',
-                                    }
-                                }}
-                            >
-                                <ListItemText
-                                    primary={new Date(message.timestamp).toLocaleString()}
-                                    secondary={`Duration: ${message.duration}`}
-                                />
-                            </ListItem>
-                        ))}
-                    </List>
-                )}
-            </DialogContent>
-        </Dialog>
-    );
+    const stopRecording = () => {
+        isCancelledRef.current = true;
+        
+        if (recognition.current) {
+            recognition.current.stop();
+        }
+        if (synthesisRef.current) {
+            synthesisRef.current.cancel();
+        }
+        if (silenceTimeoutRef.current) {
+            clearTimeout(silenceTimeoutRef.current);
+        }
+        
+        setIsRecording(false);
+        setIsPaused(false);
+        setIsProcessing(false);
+
+        const goodbyeMessage = goodbyeMessages[Math.floor(Math.random() * goodbyeMessages.length)];
+        speak(goodbyeMessage);
+        
+        setStatus("Click on the mic to start recording");
+        setTranscript("");
+    };
 
     return (
-        <Container maxWidth="100vw" sx={{
-            minHeight: "100vh",
-            display: "flex",
-            flexDirection: "column",
-            background: "linear-gradient(135deg, #E6E6FA 0%, #F8F9FA 100%)",
-            position: "relative",
-            pt: 12,
-            overflow: "hidden",
-        }}>
-            <Navbar />
-            <HistoryDialog />
-            
-            {/* Background Pattern */}
-            <Box sx={{
-                position: "absolute",
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                opacity: 0.1,
-                background: "radial-gradient(circle at 25px 25px, #4682B4 2%, transparent 0%), radial-gradient(circle at 75px 75px, #D87093 2%, transparent 0%)",
-                backgroundSize: "100px 100px",
-                zIndex: 0,
-            }} />
-
-            {/* History Button - Moved after background pattern and updated styles */}
-            <Box
-                sx={{
-                    position: 'fixed',
-                    right: 24,
-                    bottom: 24,
-                    zIndex: 10, // Increased z-index to ensure it's above other elements
-                }}
-            >
-                <Tooltip title="View Message History">
-                    <IconButton
-                        onClick={() => setIsHistoryOpen(true)}
-                        sx={{
-                            backgroundColor: '#4682B4',
-                            color: 'white',
-                            '&:hover': {
-                                backgroundColor: '#D87093',
-                            },
-                            width: 56,
-                            height: 56,
-                            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-                            cursor: 'pointer', // Explicitly set cursor
-                        }}
-                    >
-                        <HistoryIcon />
-                    </IconButton>
-                </Tooltip>
-            </Box>
-
-            {/* Main content box */}
-            <Box sx={{
-                maxWidth: "800px",
-                width: "90%",
-                margin: "auto",
-                padding: { xs: "20px", sm: "40px" },
-                borderRadius: "24px",
-                backgroundColor: "rgba(255, 255, 255, 0.95)",
-                backdropFilter: "blur(10px)",
-                boxShadow: "0 8px 32px rgba(0,0,0,0.1)",
-                textAlign: "center",
+        <Container
+            maxWidth="100vw"
+            sx={{
+                minHeight: "100vh",
                 display: "flex",
                 flexDirection: "column",
+                justifyContent: "center",
                 alignItems: "center",
-                gap: "40px",
-                position: "relative",
-                zIndex: 1,
-            }}>
+                backgroundColor: "#E6E6FA",
+            }}
+        >
+            <Navbar />
+            
+            <Box
+                sx={{
+                    maxWidth: "800px",
+                    width: "80%",
+                    margin: "auto",
+                    padding: "40px",
+                    borderRadius: "15px",
+                    backgroundColor: "#ffffff",
+                    boxShadow: "0 4px 10px rgba(0,0,0,0.1)",
+                    textAlign: "center",
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "60px",
+                    minHeight: "60vh",
+                }}
+            >
                 <Typography 
                     variant="h1"
                     sx={{
@@ -282,104 +267,144 @@ export default function SpeakPage() {
                 >
                     Voice Chat Support
                 </Typography>
-
-                <Box sx={{
-                    position: 'relative',
-                    width: "100%",
-                    p: 3,
-                    borderRadius: "15px",
-                    backgroundColor: "#F8F9FA",
-                    border: "1px solid rgba(70, 130, 180, 0.2)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    minHeight: "70px",
-                }}>
-                    <Typography variant="body1" sx={{ 
-                        color: isProcessing ? "#4682B4" : "#666",
+                <Box
+                    sx={{
+                        position: 'relative',
+                        borderRadius: "15px",
+                        border: "1px solid black",
+                        width: "80%",
+                        height: "70px",
                         display: "flex",
                         alignItems: "center",
-                        gap: 1,
-                    }}>
+                        justifyContent: "center",
+                        backgroundColor: "#E6E6FA",
+                        boxShadow: "0 4px 10px rgba(0,0,0,0.1)",
+                    }}
+                >
+                    <Typography variant="body1" sx={{ color: "black" }}>
                         {status}
-                        {isProcessing && <CircularProgress size={20} sx={{ ml: 2 }} />}
                     </Typography>
+                    {isProcessing && (
+                        <CircularProgress
+                            size={20}
+                            sx={{
+                                position: 'absolute',
+                                right: '20px'
+                            }}
+                        />
+                    )}
                 </Box>
-
-                <Box sx={{
-                    display: "flex",
-                    gap: 4,
-                    justifyContent: "center",
-                    flexWrap: "wrap",
-                }}>
-                    <Button
-                        onClick={isRecording ? stopRecording : startRecording}
-                        disabled={isProcessing}
-                        sx={{
-                            width: 120,
-                            height: 120,
-                            borderRadius: "50%",
-                            backgroundColor: isRecording ? "#ff4444" : "#D87093",
-                            transition: "all 0.3s ease",
-                            display: "flex",
-                            flexDirection: "column",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            gap: 1,
-                            '&:hover': {
-                                backgroundColor: isRecording ? "#ff6666" : "#4682B4",
-                                transform: "scale(1.05)",
-                                boxShadow: "0 8px 25px rgba(0,0,0,0.15)",
-                            },
-                            '&:disabled': {
-                                backgroundColor: "#cccccc",
-                            }
-                        }}
-                    >
-                        {isRecording ? (
-                            <StopIcon sx={{ fontSize: 40, color: "white" }} />
-                        ) : (
-                            <MicIcon sx={{ fontSize: 40, color: "white" }} />
-                        )}
-                        <Typography sx={{ color: "white", fontSize: "0.9rem" }}>
-                            {isRecording ? "Stop" : "Speak"}
-                        </Typography>
-                    </Button>
-
-                    <Button
-                        onClick={playResponse}
-                        disabled={isRecording || isProcessing || !audioBlob}
-                        sx={{
-                            width: 120,
-                            height: 120,
-                            borderRadius: "50%",
-                            backgroundColor: "#4682B4",
-                            transition: "all 0.3s ease",
-                            display: "flex",
-                            flexDirection: "column",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            gap: 1,
-                            '&:hover': {
+                <Box
+                    sx={{
+                        display: 'flex',
+                        gap: '20px',
+                        alignItems: 'center'
+                    }}
+                >
+                    {!isRecording ? (
+                        <Box
+                            sx={{
+                                width: 100,
+                                height: 100,
                                 backgroundColor: "#D87093",
-                                transform: "scale(1.05)",
-                                boxShadow: "0 8px 25px rgba(0,0,0,0.15)",
-                            },
-                            '&:disabled': {
-                                backgroundColor: "#cccccc",
-                            }
-                        }}
-                    >
-                        <VolumeUpIcon sx={{ fontSize: 40, color: "white" }} />
-                        <Typography sx={{ color: "white", fontSize: "0.9rem" }}>
-                            Listen
-                        </Typography>
-                    </Button>
+                                borderRadius: "50%",
+                                display: "flex",
+                                justifyContent: "center",
+                                alignItems: "center",
+                                cursor: "pointer",
+                                transition: "background-color 0.3s ease"
+                            }}
+                        >
+                            <Button
+                                disabled={isProcessing}
+                                onClick={startRecording}
+                                sx={{
+                                    padding: "20px",
+                                    fontWeight: "bold",
+                                    textTransform: "none",
+                                    borderRadius: "50%",
+                                    width: "100%",
+                                    height: "100%",
+                                    '&:disabled': {
+                                        opacity: 0.7,
+                                        cursor: 'not-allowed'
+                                    }
+                                }}
+                            >
+                                <MicIcon sx={{ fontSize: 40, color: "black" }} />
+                            </Button>
+                        </Box>
+                    ) : (
+                        <>
+                            <Box
+                                sx={{
+                                    width: 100,
+                                    height: 100,
+                                    backgroundColor: "#4682B4",
+                                    borderRadius: "50%",
+                                    display: "flex",
+                                    justifyContent: "center",
+                                    alignItems: "center",
+                                    cursor: "pointer",
+                                }}
+                            >
+                                <Button
+                                    disabled={isProcessing}
+                                    onClick={stopRecording}
+                                    sx={{
+                                        padding: "20px",
+                                        fontWeight: "bold",
+                                        textTransform: "none",
+                                        borderRadius: "50%",
+                                        width: "100%",
+                                        height: "100%",
+                                        '&:disabled': {
+                                            opacity: 0.7,
+                                            cursor: 'not-allowed'
+                                        }
+                                    }}
+                                >
+                                    <CancelIcon sx={{ fontSize: 40, color: "black" }} />
+                                </Button>
+                            </Box>
+                            <Box
+                                sx={{
+                                    width: 100,
+                                    height: 100,
+                                    backgroundColor: isPaused ? "#90EE90" : "#FFB6C1",
+                                    borderRadius: "50%",
+                                    display: "flex",
+                                    justifyContent: "center",
+                                    alignItems: "center",
+                                    cursor: "pointer",
+                                }}
+                            >
+                                <Button
+                                    disabled={isProcessing}
+                                    onClick={isPaused ? resumeRecording : pauseRecording}
+                                    sx={{
+                                        padding: "20px",
+                                        fontWeight: "bold",
+                                        textTransform: "none",
+                                        borderRadius: "50%",
+                                        width: "100%",
+                                        height: "100%",
+                                        '&:disabled': {
+                                            opacity: 0.7,
+                                            cursor: 'not-allowed'
+                                        }
+                                    }}
+                                >
+                                    {isPaused ? (
+                                        <PlayArrowIcon sx={{ fontSize: 40, color: "black" }} />
+                                    ) : (
+                                        <PauseIcon sx={{ fontSize: 40, color: "black" }} />
+                                    )}
+                                </Button>
+                            </Box>
+                        </>
+                    )}
                 </Box>
-
-                <Typography variant="body2" sx={{ color: "#666", maxWidth: "600px" }}>
-                    Click the microphone button to start speaking. Your voice will be processed and you'll receive a response that can be played back using the listen button.
-                </Typography>
             </Box>
         </Container>
     );

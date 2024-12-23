@@ -12,7 +12,7 @@ export default function Navbar() {
       boxShadow: "0 4px 20px rgba(0,0,0,0.08)",
       backdropFilter: "blur(8px)",
       margin: { xs: "0.5rem", md: "1rem" },
-      width: { xs: "calc(100% - 1rem)", md: "calc(100% - 2rem)" },
+      width: { xs: "calc(100% - 2rem)", md: "calc(100% - 2rem)" },
       borderRadius: { xs: "0.5rem", md: "1rem" },
     }}>
       <Toolbar 
