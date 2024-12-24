@@ -59,13 +59,7 @@ export async function POST(req) {
         
         const genAI = new GoogleGenerativeAI(apiKey);
         const model = genAI.getGenerativeModel({ 
-            model: "gemini-pro",
-            generationConfig: {
-                maxOutputTokens: 100, // Limit response length
-                temperature: 0.7,
-                topP: 0.8,
-                topK: 40,
-            }
+            model: "gemini-pro"
         });
 
         const prompt = `${systemPrompt}\n\nUser said: ${userInput}\n\nRespond briefly:`;
