@@ -364,7 +364,6 @@ export default function Home() {
       {/* Enhanced Footer */}
       <Box 
         component="footer" 
-        data-aos="fade-up"
         sx={{ 
           bgcolor: "#E6E6FA",
           color: "#4682B4",
