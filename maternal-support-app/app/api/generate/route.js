@@ -70,7 +70,7 @@ export async function POST(req) {
 
         const prompt = `${systemPrompt}\n\nUser said: ${userInput}\n\nRespond briefly:`;
         const result = await model.generateContent(prompt);
-        const response = await result.response.text();
+        const response =  result.response.text();
 
         if (!response) {
             throw new Error('No response received from Gemini AI');
