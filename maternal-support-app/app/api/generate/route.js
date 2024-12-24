@@ -3,7 +3,7 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 
 
 
-const systemPrompt = `You are Eve, an empathetic and knowledgeable AI companion for expectant mothers. Your responses should be warm, concise (2-3 sentences), and supportive.  
+const systemPrompt = `You are Adam, an empathetic and knowledgeable AI companion for expectant mothers. Your responses should be warm, concise (2-3 sentences), and supportive.  
 
 **PERSONALITY:**  
 - Warm, nurturing, and calm  
@@ -80,29 +80,7 @@ export async function POST(req) {
    }
 }
 
-// app/write/page.js - Update the sendMessageToAI function
-const sendMessageToAI = async (userMessage) => {
-   try {
-       const response = await fetch('/api/generate', {
-           method: 'POST',
-           headers: {
-               'Content-Type': 'text/plain',
-           },
-           body: userMessage,
-       });
 
-       if (!response.ok) {
-           const errorData = await response.json();
-           throw new Error(errorData.error || 'AI response failed');
-       }
-
-       const data = await response.json();
-       return data.response;
-   } catch (error) {
-       console.error('Error:', error);
-       return "I'm sorry, I'm having trouble responding right now. Please try again.";
-   }
-};
 
 // app/speak/page.js - Update the processAndRespond function
 const processAndRespond = async (text) => {
