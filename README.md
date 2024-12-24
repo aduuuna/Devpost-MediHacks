@@ -14,8 +14,7 @@ This repository contains the codebase for a **Maternal Support Communication Web
 
 - **Frontend**: [Next.js](https://nextjs.org/) for building a scalable and dynamic user interface.
 - **Backend**: [Gemini API](https://gemini-docs-link.com) for handling AI-driven conversations.
-- **Text-to-Speech**: Integrates with [Google Cloud Text-to-Speech](https://cloud.google.com/text-to-speech) or similar APIs to support voice interaction.
-- **Styling**: [Tailwind CSS](https://tailwindcss.com/) for responsive and accessible design.
+- **Styling**: [Material UI](https://mui.com/) for responsive and accessible design.
 - **Authentication**: [Clerk](https://clerk.com)  secure authentication provider to ensure user privacy.
 
 ## Installation
@@ -34,8 +33,8 @@ This repository contains the codebase for a **Maternal Support Communication Web
 3. Create a `.env.local` file to store your API keys and environment variables:
    ```env
    GEMINI_API_KEY=your_gemini_api_key
-   TEXT_TO_SPEECH_API_KEY=your_text_to_speech_api_key
-   NEXT_PUBLIC_BASE_URL=http://localhost:3000
+   NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=your_next_public_api_key
+   CLERK_SECRET_KEY=your_clerk_secret_key
    ```
 
 4. Start the development server:
@@ -54,17 +53,33 @@ This repository contains the codebase for a **Maternal Support Communication Web
 ## Project Structure
 
 ```
-.
-├── public/         # Static assets
-├── src/
-│   ├── components/ # Reusable UI components
-│   ├── pages/      # Next.js pages
-│   ├── styles/     # Global and component-specific styles
-│   ├── utils/      # Utility functions
-│   └── services/   # API integration logic
-├── .env.local      # Environment variables
-├── README.md       # Project documentation
-└── package.json    # Dependency management
+├── public/
+├── app/
+│   ├── api/
+│   │   └── generate/
+│   │       └── route.js
+│   ├── choose/
+│   │   └── page.js
+│   ├── components/
+│   │   └── Navbar.js
+│   ├── sign-in/
+│   │   └── [[...sign-in]]/
+│   │       └── page.js
+│   ├── sign-out/
+│   │   └── [[...sign-out]]/
+│   │       └── page.js
+│   ├── speak/
+│   │   └── page.js
+│   ├── write/
+│   │   └── page.js
+│   ├── layout.js
+│   └── page.js
+│
+├── .env.local
+├── README.md
+├── package.json
+└── middleware.ts
+
 ```
 
 ## API Integration
@@ -73,9 +88,9 @@ This repository contains the codebase for a **Maternal Support Communication Web
 - Used for AI-powered conversations.
 - [Documentation Link](https://gemini-docs-link.com)
 
-### Text-to-Speech API
-- Converts text responses into voice for accessibility.
-- [Documentation Link](https://cloud.google.com/text-to-speech)
+### Clerk Integration
+- Clerk manages user authentication.
+- [Documentation Link](https://clerk.com/docs)
 
 ## Legal and Ethical Considerations
 
@@ -116,6 +131,14 @@ For any inquiries or support, please contact:
 - **Name**: Joy Owusu Ansah
 - **Email**: owusujoyansah@gmail.com
 
+- **Name**: Gabriel Kwame Addo Quainoo
+- **Email**: gkaquainoo@gmail.com
+
+- **Name**: Dickson Daniel Peprah
+- **Email**: techpepson@gmail.com
+
+- **Name**: Bawah Josephus
+- **Email**: bawahjosephus67@gmail.com
 ---
 
 Start building a supportive environment for expecting mothers, one interaction at a time!
