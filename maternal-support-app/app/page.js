@@ -1,5 +1,7 @@
 "use client";
-import React from "react";
+import React, { useEffect } from "react";
+import AOS from 'aos';
+import 'aos/dist/aos.css';
 import {
   Container,
   AppBar,
@@ -28,6 +30,14 @@ import AccessibilityNewIcon from '@mui/icons-material/AccessibilityNew';
 import VolumeUpIcon from '@mui/icons-material/VolumeUp';
 
 export default function Home() {
+  useEffect(() => {
+    AOS.init({
+      duration: 1000,
+      once: false,
+      easing: 'ease-out',
+    });
+  }, []);
+
   return (
     <Container maxWidth="100vw" sx={{
       minHeight: "100vh",
@@ -145,14 +155,14 @@ export default function Home() {
           />
         </Box>
         <Box sx={{ position: "relative", zIndex: 1 }}>
-          <Typography variant="h3" sx={{ 
+          <Typography data-aos="zoom-out" variant="h3" sx={{ 
             fontWeight: "bold",
             color: "#4682B4",
             mb: 3
           }}>
             Your Trusted Pregnancy Companion
           </Typography>
-          <Typography variant="h6" sx={{ 
+          <Typography data-aos="fade-up" variant="h6" sx={{ 
             color: "white",
             mb: 4,
             maxWidth: "800px",
@@ -205,22 +215,46 @@ export default function Home() {
         </Typography>
         <Grid container spacing={3} justifyContent="center">
           {[
-            { icon: <SmartToyIcon sx={{ fontSize: 40 }}/>, label: "Google Gemini AI", desc: "Advanced language model for accurate responses" },
-            { icon: <VolumeUpIcon sx={{ fontSize: 40 }}/>, label: "Text-to-Speech", desc: "Voice interaction for accessibility" },
-            { icon: <HealthAndSafetyIcon sx={{ fontSize: 40 }}/>, label: "Clerk Auth", desc: "Secure user authentication" },
-            { icon: <AccessibilityNewIcon sx={{ fontSize: 40 }}/>, label: "Accessibility", desc: "WCAG compliant design" }
+            { 
+              icon: <SmartToyIcon sx={{ fontSize: 40 }}/>, 
+              label: "Google Gemini AI", 
+              desc: "Advanced language model for accurate responses",
+              animation: "fade-right"
+            },
+            { 
+              icon: <VolumeUpIcon sx={{ fontSize: 40 }}/>, 
+              label: "Text-to-Speech", 
+              desc: "Voice interaction for accessibility",
+              animation: "fade-up"
+            },
+            { 
+              icon: <HealthAndSafetyIcon sx={{ fontSize: 40 }}/>, 
+              label: "Clerk Auth", 
+              desc: "Secure user authentication",
+              animation: "fade-up"
+            },
+            { 
+              icon: <AccessibilityNewIcon sx={{ fontSize: 40 }}/>, 
+              label: "Accessibility", 
+              desc: "WCAG compliant design",
+              animation: "fade-left"
+            }
           ].map((tech, index) => (
             <Grid item xs={12} sm={6} md={3} key={index}>
-              <Card sx={{
-                height: '100%',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                p: 2,
-                backgroundColor: 'rgb(255, 255, 255)',
-                border: '1px solid rgba(70, 130, 180, 0.1)',
-                boxShadow: '2px 2px 10px rgba(0,0,0,0.1)',
-              }}>
+              <Card 
+                data-aos={tech.animation}
+                data-aos-delay={index * 100}
+                sx={{
+                  height: '100%',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  p: 2,
+                  backgroundColor: 'rgb(255, 255, 255)',
+                  border: '1px solid rgba(70, 130, 180, 0.1)',
+                  boxShadow: '2px 2px 10px rgba(0,0,0,0.1)',
+                }}
+              >
                 <Box sx={{ 
                   color: "#4682B4",
                   mb: 2,
@@ -252,16 +286,20 @@ export default function Home() {
         </Typography>
       <Grid container spacing={4} sx={{ px: 2, mb: 6 }}>
         <Grid item xs={12} md={4}>
-          <Card sx={{ 
-            height: '100%',
-            transition: 'all 0.3s ease',
-            '&:hover': { 
-              transform: 'translateY(-5px)',
-              boxShadow: '0 8px 25px rgba(0,0,0,0.1)',
-            },
-            borderRadius: '16px',
-            overflow: 'hidden',
-          }}>
+          <Card 
+            data-aos="flip-left"
+            data-aos-delay="100"
+            sx={{ 
+              height: '100%',
+              transition: 'all 0.3s ease',
+              '&:hover': { 
+                transform: 'translateY(-5px)',
+                boxShadow: '0 8px 25px rgba(0,0,0,0.1)',
+              },
+              borderRadius: '16px',
+              overflow: 'hidden',
+            }}
+          >
             <CardContent sx={{ textAlign: 'center', py: 4 }}>
               <ChatIcon sx={{ 
                 fontSize: 50, 
@@ -279,11 +317,15 @@ export default function Home() {
           </Card>
         </Grid>
         <Grid item xs={12} md={4}>
-          <Card sx={{ 
-            height: '100%',
-            transition: 'transform 0.2s',
-            '&:hover': { transform: 'translateY(-5px)' }
-          }}>
+          <Card 
+            data-aos="flip-left"
+            data-aos-delay="200"
+            sx={{ 
+              height: '100%',
+              transition: 'transform 0.2s',
+              '&:hover': { transform: 'translateY(-5px)' }
+            }}
+          >
             <CardContent sx={{ textAlign: 'center', py: 4 }}>
               <SupportIcon sx={{ fontSize: 50, color: "#D87093", mb: 2 }} />
               <Typography variant="h6" sx={{ mb: 2, fontWeight: "bold" }}>
@@ -296,11 +338,15 @@ export default function Home() {
           </Card>
         </Grid>
         <Grid item xs={12} md={4}>
-          <Card sx={{ 
-            height: '100%',
-            transition: 'transform 0.2s',
-            '&:hover': { transform: 'translateY(-5px)' }
-          }}>
+          <Card 
+            data-aos="flip-left"
+            data-aos-delay="300"
+            sx={{ 
+              height: '100%',
+              transition: 'transform 0.2s',
+              '&:hover': { transform: 'translateY(-5px)' }
+            }}
+          >
             <CardContent sx={{ textAlign: 'center', py: 4 }}>
               <SecurityIcon sx={{ fontSize: 50, color: "#4682B4", mb: 2 }} />
               <Typography variant="h6" sx={{ mb: 2, fontWeight: "bold" }}>
@@ -316,14 +362,18 @@ export default function Home() {
       </Box>
 
       {/* Enhanced Footer */}
-      <Box component="footer" sx={{ 
-        bgcolor: "#E6E6FA",
-        color: "#4682B4",
-        py: 3,
-        mt: "auto",
-        borderTopLeftRadius: "20px",
-        borderTopRightRadius: "20px",
-      }}>
+      <Box 
+        component="footer" 
+        data-aos="fade-up"
+        sx={{ 
+          bgcolor: "#E6E6FA",
+          color: "#4682B4",
+          py: 3,
+          mt: "auto",
+          borderTopLeftRadius: "20px",
+          borderTopRightRadius: "20px",
+        }}
+      >
         <Container maxWidth="lg">
           <Typography variant="body1" align="center" sx={{ fontWeight: "500" }}>
             © 2024 Maternal Chat Support System. All rights reserved.

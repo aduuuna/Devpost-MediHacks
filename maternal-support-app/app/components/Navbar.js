@@ -12,14 +12,14 @@ export default function Navbar() {
       boxShadow: "0 4px 20px rgba(0,0,0,0.08)",
       backdropFilter: "blur(8px)",
       margin: { xs: "0.5rem", md: "1rem" },
-      width: { xs: "calc(100% - 2rem)", md: "calc(100% - 2rem)" },
+      width: { xs: "calc(100% - 1rem)", md: "calc(100% - 2rem)" },
       borderRadius: { xs: "0.5rem", md: "1rem" },
     }}>
       <Toolbar 
         sx={{ 
           borderRadius: "inherit",
           minHeight: { xs: '48px', sm: '64px' },
-          padding: { xs: '0 8px', sm: '0 16px' },
+          padding: { xs: '0 4px', sm: '0 16px' },
         }}
       >
         <Link href="/" style={{ 
@@ -31,8 +31,8 @@ export default function Navbar() {
           <Image 
             src={logo} 
             alt="Logo" 
-            width={32} 
-            height={32} 
+            width={28} 
+            height={28} 
             style={{ 
               width: 'auto',
               height: 'auto',
@@ -40,15 +40,15 @@ export default function Navbar() {
           />
           <Typography variant="h6" sx={{ 
             flexGrow: 1, 
-            ml: { xs: 1, sm: 2 },
+            ml: { xs: 0.5, sm: 2 },
             color: "#4682B4",
             fontWeight: "bold",
-            fontSize: { xs: '1rem', sm: '1.25rem' },
+            fontSize: { xs: '0.875rem', sm: '1.25rem' },
             '&:hover': {
               color: "#D87093",
             }
           }}>
-            Maternal Chat Support
+            Maternal Chat
           </Typography>
         </Link>
 
@@ -59,11 +59,12 @@ export default function Navbar() {
             variant="outlined"
             size="small"
             sx={{ 
-              mr: { xs: 1, sm: 2 },
+              mr: { xs: 0.5, sm: 2 },
               borderColor: "#4682B4",
               color: "#4682B4",
-              fontSize: { xs: '0.75rem', sm: '0.875rem' },
-              padding: { xs: '4px 8px', sm: '6px 16px' },
+              fontSize: { xs: '0.7rem', sm: '0.875rem' },
+              padding: { xs: '2px 6px', sm: '6px 16px' },
+              minWidth: { xs: '60px', sm: 'auto' },
               "&:hover": { 
                 borderColor: "#D87093",
                 color: "#D87093"
@@ -78,8 +79,9 @@ export default function Navbar() {
             size="small"
             sx={{ 
               backgroundColor: "#4682B4",
-              fontSize: { xs: '0.75rem', sm: '0.875rem' },
-              padding: { xs: '4px 8px', sm: '6px 16px' },
+              fontSize: { xs: '0.7rem', sm: '0.875rem' },
+              padding: { xs: '2px 6px', sm: '6px 16px' },
+              minWidth: { xs: '60px', sm: 'auto' },
               "&:hover": { backgroundColor: "#D87093" }
             }}
             href="/sign-up"
