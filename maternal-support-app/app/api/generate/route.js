@@ -64,7 +64,7 @@ export async function POST(req) {
 
        const prompt = `${systemPrompt}\n\nUser said: ${userInput}\n\nRespond briefly:`;
        const result = await model.generateContent(prompt);
-       const response = await result.response.text();
+       const response =  result.response.text();
 
        return NextResponse.json({ response });
 

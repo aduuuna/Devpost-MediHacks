@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
+import { useUser } from "@clerk/nextjs";
 import {
     Container,
     Box,
@@ -19,13 +20,26 @@ import {
 import SendIcon from '@mui/icons-material/Send';
 import MenuIcon from '@mui/icons-material/Menu';
 import CloseIcon from '@mui/icons-material/Close';
-import AddIcon from '@mui/icons-material/Add';
 import Navbar from '../components/Navbar';
+import { 
+    collection, 
+    addDoc, 
+    getDocs, 
+    query, 
+    where, 
+    deleteDoc,
+    doc,
+    getDoc,
+    updateDoc
+} from 'firebase/firestore';
+import {db} from "../../firebase";
 
 export default function WritePage() {
+    const { isLoaded, isSignedIn, user } = useUser();
     const [message, setMessage] = useState("");
     const [chats, setChats] = useState([]);
     const [chatHistory, setChatHistory] = useState([]);
+    const [selectedChatId, setSelectedChatId] = useState(null);
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [streamingText, setStreamingText] = useState("");
@@ -37,6 +51,8 @@ export default function WritePage() {
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }, [chats, streamingText]);
+
+    //This function helps stream the response from the AI
 
     const simulateStreaming = (text) => {
         return new Promise((resolve) => {
@@ -64,9 +80,36 @@ export default function WritePage() {
         });
     };
 
-    const startNewChat = () => {
-        setChats([]);
-        setMessage("");
+    // This function is responsible for starting a new chat
+
+    const startNewChat = async () => {
+        if (!user) return;
+
+        try {
+            // Create a new chat document
+            const chatRef = await addDoc(collection(db, "chats"), {
+                userId: user.id,
+                title: "New Chat",
+                timestamp: new Date().toISOString(),
+                lastMessage: null
+            });
+
+            // Create messages subcollection for this chat
+            const newChat = {
+                id: chatRef.id,
+                userId: user.id,
+                title: "New Chat",
+                timestamp: new Date().toISOString(),
+                lastMessage: null
+            };
+
+            setChatHistory(prev => [...prev, newChat]);
+            setSelectedChatId(chatRef.id);
+            setChats([]);
+            console.log("New chat created with ID:", chatRef.id);
+        } catch (error) {
+            console.error("Error creating chat:", error);
+        }
     };
 
     const summarizeChat = (messages) => {
@@ -77,65 +120,164 @@ export default function WritePage() {
             firstMessage;
     };
 
+    // Loading user's chat History
+
     useEffect(() => {
-        // Load chat history from localStorage
-        const savedChats = localStorage.getItem('chatHistory');
-        if (savedChats) {
-            setChatHistory(JSON.parse(savedChats));
+        async function loadUserChats() {
+            if (!user) return;
+            
+            try {
+                // Get all chats where userId matches current user
+                const chatsQuery = query(
+                    collection(db, "chats"),
+                    where("userId", "==", user.id)
+                );
+                
+                const querySnapshot = await getDocs(chatsQuery);
+                const userChats = [];
+                
+                querySnapshot.forEach((doc) => {
+                    userChats.push({
+                        id: doc.id,
+                        ...doc.data()
+                    });
+                });
+                
+                setChatHistory(userChats);
+            } catch (error) {
+                console.error("Error loading chats:", error);
+            }
         }
-    }, []);
+
+        if (isLoaded && isSignedIn) {
+            loadUserChats();
+        }
+    }, [user, isLoaded, isSignedIn]);
+
+
+
+    // This function loads a specific chat
+
+    const loadChat = async (chatId) => {
+        if (!user) return;
+
+        try {
+            // Get all messages for this chat
+            const messagesQuery = query(collection(db, "chats", chatId, "messages"));
+            const querySnapshot = await getDocs(messagesQuery);
+            
+            const messages = [];
+            querySnapshot.forEach((doc) => {
+                messages.push(doc.data());
+            });
+
+            setChats(messages);
+            setSelectedChatId(chatId);
+        } catch (error) {
+            console.error("Error loading messages:", error);
+        }
+    };
+
+    // This function deletes a chat
+
+    const deleteChat = async (chatId) => {
+        if (!user) return;
+
+        try {
+            // Delete the chat document
+            await deleteDoc(doc(db, "chats", chatId));
+            
+            // Delete all messages in the subcollection
+            const messagesQuery = query(collection(db, "chats", chatId, "messages"));
+            const messagesSnapshot = await getDocs(messagesQuery);
+            
+            messagesSnapshot.forEach(async (messageDoc) => {
+                await deleteDoc(doc(db, "chats", chatId, "messages", messageDoc.id));
+            });
+
+            // Update local state
+            setChatHistory(prev => prev.filter(chat => chat.id !== chatId));
+            if (selectedChatId === chatId) {
+                setSelectedChatId(null);
+                setChats([]);
+            }
+        } catch (error) {
+            console.error("Error deleting chat:", error);
+        }
+    };
+
+
 
     // app/write/page.js - Update the sendMessageToAI function
-const sendMessageToAI = async (userMessage) => {
-    try {
-        const response = await fetch('/api/generate', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'text/plain',
-            },
-            body: userMessage,
-        });
- 
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || 'AI response failed');
-        }
- 
-        const data = await response.json();
-        return data.response;
-    } catch (error) {
-        console.error('Error:', error);
-        return "I'm sorry, I'm having trouble responding right now. Please try again.";
-    }
- };
 
+    const sendMessageToAI = async (userMessage) => {
+        console.log("Sending message to AI:", userMessage);
+        try {
+            const response = await fetch('/api/generate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'text/plain',
+                },
+                body: userMessage,
+            });
+            console.log("Response status:", response.status);
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'AI response failed');
+            }
+    
+            const data = await response.json();
+            console.log("AI response:", data);
+            return data.response;
+        } catch (error) {
+            console.error('Error:', error);
+            return "I'm sorry, I'm having trouble responding right now. Please try again.";
+        }
+    };
+
+    // Modifing handleSendMessage function to store messages in Firebase
     const handleSendMessage = async () => {
-        if (message.trim() === "" || isLoading) return;
+        console.log("handleSendMessage called", message);
+        if (message.trim() === "" || isLoading || !user || !selectedChatId) return;
 
         const userMessage = {
             text: message,
             type: "user",
             timestamp: new Date().toISOString()
         };
-        
-        setChats(current => [...current, userMessage]);
-        setMessage("");
-        setIsLoading(true);
 
-        const aiResponse = await sendMessageToAI(message);
-        await simulateStreaming(aiResponse);
-        setIsLoading(false);
+        try {
+            // Add message to messages subcollection
+            await addDoc(collection(db, "chats", selectedChatId, "messages"), userMessage);
 
-        if (chats.length === 0) {
-            const newChat = {
-                title: summarizeChat([userMessage]),
+            // Update chat title if it's the first message
+            const chatDoc = await getDoc(doc(db, "chats", selectedChatId));
+            if (chatDoc.data().title === "New Chat") {
+                await updateDoc(doc(db, "chats", selectedChatId), {
+                    title: message.substring(0, 30) + (message.length > 30 ? "..." : ""),
+                    lastMessage: message
+                });
+            }
+
+            setChats(prev => [...prev, userMessage]);
+            setMessage("");
+
+            // Handle AI response
+            const aiResponse = await sendMessageToAI(message);
+            const aiMessage = {
+                text: aiResponse,
+                type: "ai",
                 timestamp: new Date().toISOString()
             };
-            setChatHistory(prev => [...prev, newChat]);
-            localStorage.setItem('chatHistory', JSON.stringify([...chatHistory, newChat]));
+
+            await addDoc(collection(db, "chats", selectedChatId, "messages"), aiMessage);
+            setChats(prev => [...prev, aiMessage]);
+
+        } catch (error) {
+            console.error("Error sending message:", error);
         }
     };
-
     
     const handleKeyPress = (e) => {
         if (e.key === 'Enter' && !e.shiftKey) {
@@ -143,6 +285,10 @@ const sendMessageToAI = async (userMessage) => {
             handleSendMessage();
         }
     };
+
+    if (!isLoaded || !isSignedIn) {
+        return null;
+    }
 
     return (
         <Container 
@@ -183,33 +329,45 @@ const sendMessageToAI = async (userMessage) => {
                         },
                     }}
                 >
-                    <Box sx={{ p: 2, display: "flex",flexDirection: "row", justifyContent:"space-between" }}>
+                    <Box sx={{ p: 2, display: "flex", flexDirection: "row", justifyContent: "space-between" }}>
                         <Typography variant="h6" sx={{ color: "#4682B4", fontWeight: "bold" }}>
                             Chat History
                         </Typography>
                         <Button
-                            // startIcon={<AddIcon />}
                             onClick={startNewChat}
                             variant="contained"
                             sx={{
-                                width: "50px",
-                                height: "50px",
-                                
                                 backgroundColor: "#4682B4",
                                 '&:hover': { backgroundColor: "#D87093" }
                             }}
                         >
-                           New Chat
+                            New Chat
                         </Button>
                     </Box>
                     <Divider />
                     <List>
-                        {chatHistory.map((chat, index) => (
-                            <ListItemButton key={index}>
+                        {chatHistory.map((chat) => (
+                            <ListItemButton 
+                                key={chat.id}
+                                selected={selectedChatId === chat.id}
+                                onClick={() => loadChat(chat.id)}
+                            >
                                 <ListItemText 
                                     primary={chat.title}
-                                    secondary={new Date(chat.timestamp).toLocaleDateString()}
+                                    secondary={new Date(chat.timestamp?.seconds * 1000).toLocaleDateString()}
                                 />
+                                <IconButton
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        deleteChat(chat.id);
+                                    }}
+                                    sx={{
+                                        color: 'error.main',
+                                        '&:hover': { backgroundColor: 'error.light' }
+                                    }}
+                                >
+                                    <CloseIcon />
+                                </IconButton>
                             </ListItemButton>
                         ))}
                     </List>
