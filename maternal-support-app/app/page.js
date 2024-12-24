@@ -80,6 +80,7 @@ export default function Home() {
           <Typography variant="h3" sx={{ 
             fontWeight: "bold",
             color: "#4682B4",
+            fontSize: { xs: '2.5rem', sm: '3rem' },
             mb: 3
           }}>
             Your Trusted Pregnancy Companion
@@ -88,6 +89,7 @@ export default function Home() {
             color: "white",
             mb: 4,
             maxWidth: "800px",
+            fontSize: {xs: "1rem", sm:'1.5rem'},
             mx: "auto"
           }}>
             Get personalized support and guidance throughout your maternal journey
@@ -214,7 +216,8 @@ export default function Home() {
           <Card sx={{ 
             height: '100%',
             transition: 'transform 0.2s',
-            '&:hover': { transform: 'translateY(-5px)' }
+            '&:hover': { transform: 'translateY(-5px)' },
+            borderRadius: '16px',
           }}>
             <CardContent sx={{ textAlign: 'center', py: 4 }}>
               <SupportIcon sx={{ fontSize: 50, color: "#D87093", mb: 2 }} />
@@ -231,7 +234,8 @@ export default function Home() {
           <Card sx={{ 
             height: '100%',
             transition: 'transform 0.2s',
-            '&:hover': { transform: 'translateY(-5px)' }
+            '&:hover': { transform: 'translateY(-5px)' },
+            borderRadius: '16px',
           }}>
             <CardContent sx={{ textAlign: 'center', py: 4 }}>
               <SecurityIcon sx={{ fontSize: 50, color: "#4682B4", mb: 2 }} />

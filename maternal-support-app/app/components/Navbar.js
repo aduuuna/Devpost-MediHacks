@@ -64,7 +64,7 @@ export default function Navbar() {
               ml: { xs: 0.5, sm: 1 },
               color: "#4682B4",
               fontWeight: "bold",
-              fontSize: { xs: '0.8rem', sm: '1.1rem' },
+              fontSize: { xs: '1rem', sm: '1.5rem' },
               '&:hover': {
                 color: "#D87093",
               }
