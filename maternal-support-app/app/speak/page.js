@@ -129,7 +129,7 @@ export default function SpeakPage() {
         try {
             setIsProcessing(true);
             setStatus("Processing your message...");
-
+    
             const response = await fetch("/api/generate", {
                 method: "POST",
                 headers: {
@@ -137,11 +137,12 @@ export default function SpeakPage() {
                 },
                 body: text,
             });
-
+    
             if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
+                const errorData = await response.json();
+                throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
             }
-
+    
             const data = await response.json();
             
             if (data.response && synthesisRef.current && !isCancelledRef.current) {
@@ -155,13 +156,13 @@ export default function SpeakPage() {
                         setTranscript("");
                     }
                 };
-
+    
                 utterance.onerror = (error) => {
                     console.error("Speech synthesis error:", error);
                     setStatus("Error in speech synthesis. Please try again.");
                     setIsProcessing(false);
                 };
-
+    
                 synthesisRef.current.speak(utterance);
             }
         } catch (error) {

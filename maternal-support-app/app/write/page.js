@@ -85,24 +85,29 @@ export default function WritePage() {
         }
     }, []);
 
-    const sendMessageToAI = async (userMessage) => {
-        try {
-            const response = await fetch('/api/generate', {
-                method: 'POST',
-                body: userMessage,
-            });
-
-            if (!response.ok) {
-                throw new Error('AI response failed');
-            }
-
-            const data = await response.json();
-            return data.response;
-        } catch (error) {
-            console.error('Error:', error);
-            return "I'm sorry, I'm having trouble responding right now. Please try again.";
+    // app/write/page.js - Update the sendMessageToAI function
+const sendMessageToAI = async (userMessage) => {
+    try {
+        const response = await fetch('/api/generate', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'text/plain',
+            },
+            body: userMessage,
+        });
+ 
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'AI response failed');
         }
-    };
+ 
+        const data = await response.json();
+        return data.response;
+    } catch (error) {
+        console.error('Error:', error);
+        return "I'm sorry, I'm having trouble responding right now. Please try again.";
+    }
+ };
 
     const handleSendMessage = async () => {
         if (message.trim() === "" || isLoading) return;
