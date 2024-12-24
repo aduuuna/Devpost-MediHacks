@@ -25,6 +25,7 @@ export default function SpeakPage() {
     const [status, setStatus] = useState("Click on the mic to start recording");
     const [transcript, setTranscript] = useState("");
     
+    
     const recognition = useRef(null);
     const synthesisRef = useRef(null);
     const silenceTimeoutRef = useRef(null);
@@ -46,48 +47,76 @@ export default function SpeakPage() {
         
         if (!SpeechRecognition) return;
 
-        recognition.current = new SpeechRecognition();
-        recognition.current.continuous = true;
-        recognition.current.interimResults = true;
-        
-        recognition.current.onresult = (event) => {
-            if (!isCancelledRef.current && !isPaused) {
-                const current = event.resultIndex;
-                const transcriptText = event.results[current][0].transcript;
-                setTranscript(transcriptText);
-            }
-        };
-
-        recognition.current.onerror = (event) => {
-            if (event.error === 'aborted' && !isCancelledRef.current && !isPaused) {
-                try {
-                    recognition.current.start();
-                } catch (error) {
-                    console.error("Error restarting recognition:", error);
-                    setStatus("Error in speech recognition. Please try again.");
-                    stopRecording();
+        const initializeRecognition = () => {
+            recognition.current = new SpeechRecognition();
+            recognition.current.continuous = true;
+            recognition.current.interimResults = true;
+            
+            recognition.current.onresult = (event) => {
+                if (!isCancelledRef.current && !isPaused) {
+                    const current = event.resultIndex;
+                    const transcriptText = event.results[current][0].transcript;
+                    setTranscript(transcriptText);
                 }
-            } else if (event.error !== 'aborted') {
+            };
+
+            recognition.current.onerror = (event) => {
                 console.error("Speech recognition error:", event.error);
-                setStatus("Error in speech recognition. Please try again.");
-                stopRecording();
+                
+                if (event.error === 'no-speech') {
+                    // Handle no speech detected
+                    restartRecognition();
+                } else if (event.error === 'network') {
+                    // Handle network errors
+                    setStatus("Network error. Attempting to reconnect...");
+                    restartRecognition();
+                } else if (event.error !== 'aborted') {
+                    setStatus("Error in speech recognition. Restarting...");
+                    restartRecognition();
+                }
+            };
+
+            recognition.current.onend = () => {
+                if (!isCancelledRef.current && !isPaused && isRecording) {
+                    restartRecognition();
+                }
+            };
+        };
+
+        const restartRecognition = () => {
+            if (recognition.current && !isCancelledRef.current && !isPaused && isRecording) {
+                try {
+                    recognition.current.stop();
+                } catch (error) {
+                    console.error("Error stopping recognition:", error);
+                }
+
+                setTimeout(() => {
+                    try {
+                        recognition.current.start();
+                        setStatus("Listening...");
+                    } catch (error) {
+                        console.error("Error restarting recognition:", error);
+                        // Re-initialize if starting fails
+                        initializeRecognition();
+                        recognition.current.start();
+                    }
+                }, 100);
             }
         };
 
-        recognition.current.onend = () => {
-            if (!isCancelledRef.current && !isPaused && isRecording) {
-                try {
-                    recognition.current.start();
-                } catch (error) {
-                    console.error("Error restarting recognition:", error);
-                }
-            }
-        };
+        initializeRecognition();
         
         return () => {
-            stopRecording();
+            if (recognition.current) {
+                try {
+                    recognition.current.stop();
+                } catch (error) {
+                    console.error("Error stopping recognition on cleanup:", error);
+                }
+            }
         };
-    }, []); 
+    }, [isRecording, isPaused]); 
 
     // Handle recognition state changes
     useEffect(() => {
@@ -129,6 +158,15 @@ export default function SpeakPage() {
         try {
             setIsProcessing(true);
             setStatus("Processing your message...");
+            
+            // Temporarily stop recognition while processing
+            if (recognition.current) {
+                try {
+                    recognition.current.stop();
+                } catch (error) {
+                    console.error("Error stopping recognition:", error);
+                }
+            }
 
             const response = await fetch("/api/generate", {
                 method: "POST",
@@ -139,7 +177,8 @@ export default function SpeakPage() {
             });
 
             if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
+                const errorData = await response.json();
+                throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
             }
 
             const data = await response.json();
@@ -151,8 +190,17 @@ export default function SpeakPage() {
                 utterance.onend = () => {
                     if (!isCancelledRef.current) {
                         setIsProcessing(false);
-                        setStatus(isRecording ? "Listening..." : "Click on the mic to start recording");
+                        setStatus("Listening...");
                         setTranscript("");
+                        
+                        // Restart recognition after response
+                        if (isRecording && !isPaused) {
+                            try {
+                                recognition.current.start();
+                            } catch (error) {
+                                console.error("Error restarting recognition after response:", error);
+                            }
+                        }
                     }
                 };
 
@@ -168,8 +216,18 @@ export default function SpeakPage() {
             console.error("Error processing response:", error);
             setStatus("Error occurred. Please try again.");
             setIsProcessing(false);
+            
+            // Restart recognition after error
+            if (isRecording && !isPaused) {
+                try {
+                    recognition.current.start();
+                } catch (error) {
+                    console.error("Error restarting recognition after error:", error);
+                }
+            }
         }
     };
+
 
     const startRecording = () => {
         if (!recognition.current) {
@@ -184,6 +242,17 @@ export default function SpeakPage() {
         setStatus(newStatus);
         speak(newStatus);
         setTranscript("");
+
+        try {
+            recognition.current.start();
+        } catch (error) {
+            console.error("Error starting recognition:", error);
+            // Re-initialize if starting fails
+            recognition.current = new SpeechRecognition();
+            recognition.current.continuous = true;
+            recognition.current.interimResults = true;
+            recognition.current.start();
+        }
     };
     
     const pauseRecording = () => {
