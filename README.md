@@ -16,6 +16,7 @@ This repository contains the codebase for a **Maternal Support Communication Web
 - **Backend**: [Gemini API](https://gemini-docs-link.com) for handling AI-driven conversations.
 - **Styling**: [Material UI](https://mui.com/) for responsive and accessible design.
 - **Authentication**: [Clerk](https://clerk.com)  secure authentication provider to ensure user privacy.
+-- **Database Management**: [Firebase](https://firebase.google.com) reliable and scalable database management system for storing and managing data in real-time.
 
 ## Installation
 
@@ -91,6 +92,10 @@ This repository contains the codebase for a **Maternal Support Communication Web
 ### Clerk Integration
 - Clerk manages user authentication.
 - [Documentation Link](https://clerk.com/docs)
+
+## Firebase Integration
+- Firebase offers cloud-based services, including database management and storage solutions.
+-[Documentation Link](https://firebase.google.com/docs)
 
 ## Legal and Ethical Considerations
 
