@@ -1,8 +1,20 @@
+// /** @type {import('next').NextConfig} */
+// const nextConfig = {
+//   images: {
+//     domains: ['images.unsplash.com'],
+//   },
+// };
+
+// export default nextConfig;
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  output: 'export',
+  // Optional: Uncomment and set if using a base path
+  // basePath: '/<your-repository-name>',
   images: {
-    domains: ['images.unsplash.com'],
+    unoptimized: true,
   },
 };
 
-export default nextConfig;
+module.exports = nextConfig;
