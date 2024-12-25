@@ -43,26 +43,12 @@ export default function WritePage() {
     const [isLoading, setIsLoading] = useState(false);
     const [streamingText, setStreamingText] = useState("");
     const [isStreaming, setIsStreaming] = useState(false);
+    
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('md'));
     const messagesEndRef = useRef(null);
 
-    useEffect(() => {
-        if (isLoaded && isSignedIn) {
-            loadUserChats();
-        }
-    }, [isLoaded, isSignedIn]);
-
-    useEffect(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    }, [chats, streamingText]);
-
-    if (!isLoaded || !isSignedIn) {
-        return null;
-    }
-
-    
-
+    // Always define these functions outside of useEffect
     const generateChatTitle = async (message) => {
         try {
             const response = await fetch('/api/generate', {
@@ -85,7 +71,6 @@ export default function WritePage() {
         }
     };
 
-    // This function is responsible for starting a new chat
     const loadChat = async (chatId) => {
         if (!chatId || !user) return;
         
@@ -104,62 +89,6 @@ export default function WritePage() {
             console.error("Error loading chat:", error);
         }
     };
-
-    const startNewChat = async () => {
-        if (!user) return;
-        
-        try {
-            const chatRef = await addDoc(collection(db, "chats"), {
-                userId: user.id,
-                title: "New Chat",
-                createdAt: new Date()
-            });
-            
-            setSelectedChatId(chatRef.id);
-            setChats([]);
-            loadUserChats();
-        } catch (error) {
-            console.error("Chat creation error:", error);
-        }
-    };
-
-    // Loading user's chat History
-
-    useEffect(() => {
-        async function loadUserChats() {
-            if (!user) return;
-            
-            try {
-                // Get all chats where userId matches current user
-                const chatsQuery = query(
-                    collection(db, "chats"),
-                    where("userId", "==", user.id)
-                );
-                
-                const querySnapshot = await getDocs(chatsQuery);
-                const userChats = [];
-                
-                querySnapshot.forEach((doc) => {
-                    userChats.push({
-                        id: doc.id,
-                        ...doc.data()
-                    });
-                });
-                
-                setChatHistory(userChats);
-            } catch (error) {
-                console.error("Error loading chats:", error);
-            }
-        }
-
-        if (isLoaded && isSignedIn) {
-            loadUserChats();
-        }
-    }, [user, isLoaded, isSignedIn]);
-
-
-
-    // This function loads a specific chat
 
     const loadUserChats = async () => {
         if (!user) return;
@@ -185,18 +114,31 @@ export default function WritePage() {
             console.error("Error loading chats:", error);
         }
     };
-    
 
-    // This function deletes a chat
+    const startNewChat = async () => {
+        if (!user) return;
+        
+        try {
+            const chatRef = await addDoc(collection(db, "chats"), {
+                userId: user.id,
+                title: "New Chat",
+                createdAt: new Date()
+            });
+            
+            setSelectedChatId(chatRef.id);
+            setChats([]);
+            loadUserChats();
+        } catch (error) {
+            console.error("Chat creation error:", error);
+        }
+    };
 
     const deleteChat = async (chatId) => {
         if (!user) return;
 
         try {
-            // Delete the chat document
             await deleteDoc(doc(db, "chats", chatId));
             
-            // Delete all messages in the subcollection
             const messagesQuery = query(collection(db, "chats", chatId, "messages"));
             const messagesSnapshot = await getDocs(messagesQuery);
             
@@ -204,7 +146,6 @@ export default function WritePage() {
                 await deleteDoc(doc(db, "chats", chatId, "messages", messageDoc.id));
             });
 
-            // Update local state
             setChatHistory(prev => prev.filter(chat => chat.id !== chatId));
             if (selectedChatId === chatId) {
                 setSelectedChatId(null);
@@ -214,10 +155,6 @@ export default function WritePage() {
             console.error("Error deleting chat:", error);
         }
     };
-
-
-
-    // app/write/page.js - Update the sendMessageToAI function
 
     const sendMessageToAI = async (userMessage) => {
         try {
@@ -253,8 +190,6 @@ export default function WritePage() {
         }
     };
 
-    // Modifing handleSendMessage function to store messages in Firebase
-    
     const handleSendMessage = async () => {
         if (message.trim() === "" || isLoading || !user) return;
         setIsLoading(true);
@@ -310,7 +245,7 @@ export default function WritePage() {
             setStreamingText("");
         }
     };
-    
+
     const handleKeyPress = (e) => {
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
@@ -318,6 +253,20 @@ export default function WritePage() {
         }
     };
 
+    // Effects
+    useEffect(() => {
+        if (isLoaded && isSignedIn) {
+            loadUserChats();
+        }
+    }, [isLoaded, isSignedIn]);
+
+    useEffect(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }, [chats, streamingText]);
+
+    if (!isLoaded || !isSignedIn) {
+        return null;
+    }
 
     return (
         <Container 
