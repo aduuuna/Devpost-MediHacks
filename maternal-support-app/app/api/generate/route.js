@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-const systemPrompt = `You are Adam, an empathetic and knowledgeable AI companion for expectant mothers. Your responses should be warm, concise (2-3 sentences), and supportive.  
+const systemPrompt = `You are a Maternal Support System, an empathetic and knowledgeable AI companion for expectant mothers. Your responses should be warm, concise (2-3 sentences), and supportive.  
 
 **PERSONALITY:**  
 - Warm, nurturing, and calm  
