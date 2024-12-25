@@ -147,6 +147,14 @@ For any inquiries or support, please contact:
 ---
 
 Start building a supportive environment for expecting mothers, one interaction at a time!
+
+## Demo Video 🎥 
+
+Check out the demo of our project on YouTube: [Maternal Chat Support Demo](https://youtu.be/EC0zJzEUysw)
+
+
+## Screenshots
+
 ![image](https://github.com/user-attachments/assets/cb7fda66-43e1-4dd4-9dcf-3806eee5b7e0)
 ![image](https://github.com/user-attachments/assets/0a0196da-98ca-49d0-aa41-6376a1d7cb8c)
 ![image](https://github.com/user-attachments/assets/ab7fae9c-9244-4d2e-bded-969f30787a36)
