@@ -1,8 +1,6 @@
 import { NextResponse } from "next/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-
-
 const systemPrompt = `You are Adam, an empathetic and knowledgeable AI companion for expectant mothers. Your responses should be warm, concise (2-3 sentences), and supportive.  
 
 **PERSONALITY:**  
@@ -42,7 +40,6 @@ const systemPrompt = `You are Adam, an empathetic and knowledgeable AI companion
 **Goal:** Provide emotional support and general information. When in doubt, keep it simple and direct users to their healthcare providers.  
 `;
 
-
 const simulateTypewriter = async (text, controller) => {
     const encoder = new TextEncoder();
     for (let i = 0; i < text.length; i++) {
@@ -51,14 +48,28 @@ const simulateTypewriter = async (text, controller) => {
     }
 };
 
-
 export async function POST(req) {
-   // Check for API key
-   const apiKey = process.env.GEMINI_API_KEY;
+    // Check for API key
+    const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) return NextResponse.json({ error: "API key not configured" }, { status: 500 });
 
     try {
-        const { message, type } = await req.json();
+        let message;
+        let type = 'chat';  // default type
+
+        // Check content type and parse accordingly
+        const contentType = req.headers.get('content-type');
+        if (contentType === 'application/json') {
+            const jsonData = await req.json();
+            message = jsonData.message;
+            type = jsonData.type || 'chat';
+        } else if (contentType === 'text/plain') {
+            message = await req.text();
+            type = 'voice';
+        } else {
+            return NextResponse.json({ error: "Invalid content type" }, { status: 400 });
+        }
+
         const genAI = new GoogleGenerativeAI(apiKey);
         const model = genAI.getGenerativeModel({ model: "gemini-pro" });
 
@@ -70,6 +81,12 @@ export async function POST(req) {
         const result = await model.generateContent(`${systemPrompt}\n\nUser said: ${message}\n\nRespond briefly:`);
         const text = result.response.text();
 
+        // For voice requests, return JSON response
+        if (type === 'voice') {
+            return NextResponse.json({ response: text });
+        }
+
+        // For chat requests, return streaming response
         return new Response(new ReadableStream({
             async start(controller) {
                 await simulateTypewriter(text, controller);
