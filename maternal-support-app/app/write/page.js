@@ -49,35 +49,46 @@ export default function WritePage() {
     const messagesEndRef = useRef(null);
 
     useEffect(() => {
+        if (user && !selectedChatId) {
+            startNewChat();
+        }
+    }, [user]);
+
+    useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }, [chats, streamingText]);
 
-    //This function helps stream the response from the AI
-
-    const simulateStreaming = (text) => {
-        return new Promise((resolve) => {
-            setIsStreaming(true);
-            let currentText = "";
-            let index = 0;
-            
-            const interval = setInterval(() => {
-                if (index < text.length) {
-                    currentText += text[index];
-                    setStreamingText(currentText);
-                    index++;
-                } else {
-                    clearInterval(interval);
-                    setIsStreaming(false);
-                    setChats(current => [...current, {
-                        text,
-                        type: "ai",
-                        timestamp: new Date().toISOString()
-                    }]);
-                    setStreamingText("");
-                    resolve();
-                }
-            }, 30);
+    useEffect(() => {
+        console.log("Current state:", {
+            selectedChatId,
+            user: user?.id,
+            db: !!db,
+            chats: chats.length
         });
+    }, [selectedChatId, user, chats]);
+
+    
+
+    const generateChatTitle = async (message) => {
+        try {
+            const response = await fetch('/api/generate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    message: message,
+                    type: 'title'
+                }),
+            });
+            
+            if (!response.ok) throw new Error('Title generation failed');
+            const data = await response.json();
+            return data.title || "New Chat";
+        } catch (error) {
+            console.error("Error generating title:", error);
+            return "New Chat";
+        }
     };
 
     // This function is responsible for starting a new chat
@@ -86,39 +97,22 @@ export default function WritePage() {
         if (!user) return;
 
         try {
-            // Create a new chat document
             const chatRef = await addDoc(collection(db, "chats"), {
                 userId: user.id,
                 title: "New Chat",
                 timestamp: new Date().toISOString(),
                 lastMessage: null
             });
-
-            // Create messages subcollection for this chat
-            const newChat = {
-                id: chatRef.id,
-                userId: user.id,
-                title: "New Chat",
-                timestamp: new Date().toISOString(),
-                lastMessage: null
-            };
-
-            setChatHistory(prev => [...prev, newChat]);
+            
             setSelectedChatId(chatRef.id);
             setChats([]);
-            console.log("New chat created with ID:", chatRef.id);
+            
         } catch (error) {
-            console.error("Error creating chat:", error);
+            console.error("Chat creation error:", error);
         }
     };
 
-    const summarizeChat = (messages) => {
-        if (messages.length === 0) return "New Chat";
-        const firstMessage = messages[0].text;
-        return firstMessage.length > 30 ? 
-            firstMessage.substring(0, 30) + "..." : 
-            firstMessage;
-    };
+    
 
     // Loading user's chat History
 
@@ -211,59 +205,74 @@ export default function WritePage() {
     // app/write/page.js - Update the sendMessageToAI function
 
     const sendMessageToAI = async (userMessage) => {
-        console.log("Sending message to AI:", userMessage);
         try {
             const response = await fetch('/api/generate', {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'text/plain',
+                    'Content-Type': 'application/json',
                 },
-                body: userMessage,
+                body: JSON.stringify({
+                    message: userMessage,
+                    type: 'chat'
+                }),
             });
-            console.log("Response status:", response.status);
 
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error || 'AI response failed');
+            if (!response.ok) throw new Error('Stream failed');
+            
+            const reader = response.body.getReader();
+            let accumulatedResponse = '';
+            
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                
+                const chunk = new TextDecoder().decode(value);
+                accumulatedResponse += chunk;
+                setStreamingText(accumulatedResponse);
             }
-    
-            const data = await response.json();
-            console.log("AI response:", data);
-            return data.response;
+            
+            return accumulatedResponse;
         } catch (error) {
             console.error('Error:', error);
-            return "I'm sorry, I'm having trouble responding right now. Please try again.";
+            return "I'm sorry, I'm having trouble responding right now.";
         }
     };
 
     // Modifing handleSendMessage function to store messages in Firebase
     const handleSendMessage = async () => {
-        console.log("handleSendMessage called", message);
-        if (message.trim() === "" || isLoading || !user || !selectedChatId) return;
-
-        const userMessage = {
-            text: message,
-            type: "user",
-            timestamp: new Date().toISOString()
-        };
-
+        if (!selectedChatId) {
+            await startNewChat();
+        }
+        
+        if (message.trim() === "" || isLoading || !user) return;
+        setIsLoading(true);
+        setIsStreaming(true);
+        
         try {
-            // Add message to messages subcollection
-            await addDoc(collection(db, "chats", selectedChatId, "messages"), userMessage);
+            const userMessage = {
+                text: message.trim(),
+                type: "user",
+                timestamp: new Date().toISOString()
+            };
 
-            // Update chat title if it's the first message
-            const chatDoc = await getDoc(doc(db, "chats", selectedChatId));
-            if (chatDoc.data().title === "New Chat") {
-                await updateDoc(doc(db, "chats", selectedChatId), {
-                    title: message.substring(0, 30) + (message.length > 30 ? "..." : ""),
-                    lastMessage: message
-                });
+            // Add user message to database
+            await addDoc(collection(db, "chats", selectedChatId, "messages"), userMessage);
+            setChats(prev => [...prev, userMessage]);
+            
+            // Generate and update chat title if this is the first message
+            if (chats.length === 0) {
+                const title = await generateChatTitle(message);
+                await updateDoc(doc(db, "chats", selectedChatId), { title });
+                setChatHistory(prev => 
+                    prev.map(chat => 
+                        chat.id === selectedChatId ? { ...chat, title } : chat
+                    )
+                );
             }
 
-            setChats(prev => [...prev, userMessage]);
             setMessage("");
-
-            // Handle AI response
+            
+            // Handle AI response with streaming
             const aiResponse = await sendMessageToAI(message);
             const aiMessage = {
                 text: aiResponse,
@@ -273,9 +282,13 @@ export default function WritePage() {
 
             await addDoc(collection(db, "chats", selectedChatId, "messages"), aiMessage);
             setChats(prev => [...prev, aiMessage]);
-
+            
         } catch (error) {
-            console.error("Error sending message:", error);
+            console.error("Error:", error);
+        } finally {
+            setIsLoading(false);
+            setIsStreaming(false);
+            setStreamingText("");
         }
     };
     

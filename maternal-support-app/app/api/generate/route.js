@@ -43,91 +43,42 @@ const systemPrompt = `You are Adam, an empathetic and knowledgeable AI companion
 `;
 
 
+const simulateTypewriter = async (text, controller) => {
+    const encoder = new TextEncoder();
+    for (let i = 0; i < text.length; i++) {
+        controller.enqueue(encoder.encode(text[i]));
+        await new Promise(resolve => setTimeout(resolve, 30));
+    }
+};
+
+
 export async function POST(req) {
    // Check for API key
    const apiKey = process.env.GEMINI_API_KEY;
-   if (!apiKey) {
-       console.error("GEMINI_API_KEY is not set");
-       return NextResponse.json(
-           { error: "Internal server error: API key not configured" },
-           { status: 500 }
-       );
-   }
+    if (!apiKey) return NextResponse.json({ error: "API key not configured" }, { status: 500 });
 
-   try {
-       const userInput = await req.text();
-       
-       const genAI = new GoogleGenerativeAI(apiKey);
-       const model = genAI.getGenerativeModel({ 
-           model: "gemini-pro"
-       });
+    try {
+        const { message, type } = await req.json();
+        const genAI = new GoogleGenerativeAI(apiKey);
+        const model = genAI.getGenerativeModel({ model: "gemini-pro" });
 
-       const prompt = `${systemPrompt}\n\nUser said: ${userInput}\n\nRespond briefly:`;
-       const result = await model.generateContent(prompt);
-       const response =  result.response.text();
+        if (type === 'title') {
+            const result = await model.generateContent(`Generate a brief title (max 6 words) summarizing this message: ${message}`);
+            return NextResponse.json({ title: result.response.text().trim() });
+        }
 
-       return NextResponse.json({ response });
+        const result = await model.generateContent(`${systemPrompt}\n\nUser said: ${message}\n\nRespond briefly:`);
+        const text = result.response.text();
 
-   } catch (error) {
-       console.error("Error processing request:", error);
-       return NextResponse.json(
-           { 
-               error: "Failed to process request",
-               details: process.env.NODE_ENV === 'development' ? error.message : undefined 
-           },
-           { status: 500 }
-       );
-   }
+        return new Response(new ReadableStream({
+            async start(controller) {
+                await simulateTypewriter(text, controller);
+                controller.close();
+            }
+        }));
+
+    } catch (error) {
+        console.error("Error:", error);
+        return NextResponse.json({ error: "Failed to process request" }, { status: 500 });
+    }
 }
-
-
-
-// app/speak/page.js - Update the processAndRespond function
-const processAndRespond = async (text) => {
-   if (isCancelledRef.current) return;
-   
-   try {
-       setIsProcessing(true);
-       setStatus("Processing your message...");
-
-       const response = await fetch("/api/generate", {
-           method: "POST",
-           headers: {
-               "Content-Type": "text/plain",
-           },
-           body: text,
-       });
-
-       if (!response.ok) {
-           const errorData = await response.json();
-           throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
-       }
-
-       const data = await response.json();
-       
-       if (data.response && synthesisRef.current && !isCancelledRef.current) {
-           setStatus("Responding...");
-           const utterance = new SpeechSynthesisUtterance(data.response);
-           
-           utterance.onend = () => {
-               if (!isCancelledRef.current) {
-                   setIsProcessing(false);
-                   setStatus(isRecording ? "Listening..." : "Click on the mic to start recording");
-                   setTranscript("");
-               }
-           };
-
-           utterance.onerror = (error) => {
-               console.error("Speech synthesis error:", error);
-               setStatus("Error in speech synthesis. Please try again.");
-               setIsProcessing(false);
-           };
-
-           synthesisRef.current.speak(utterance);
-       }
-   } catch (error) {
-       console.error("Error processing response:", error);
-       setStatus("Error occurred. Please try again.");
-       setIsProcessing(false);
-   }
-};
