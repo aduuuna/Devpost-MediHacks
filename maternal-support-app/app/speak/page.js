@@ -25,11 +25,11 @@ export default function SpeakPage() {
     const [status, setStatus] = useState("Click on the mic to start recording");
     const [transcript, setTranscript] = useState("");
     
-    
     const recognition = useRef(null);
     const synthesisRef = useRef(null);
     const silenceTimeoutRef = useRef(null);
     const isCancelledRef = useRef(false);
+    const isRecognitionActiveRef = useRef(false);
     
     const speak = (text) => {
         if (synthesisRef.current) {
@@ -38,6 +38,29 @@ export default function SpeakPage() {
         }
     };
 
+    const safelyStopRecognition = () => {
+        if (recognition.current && isRecognitionActiveRef.current) {
+            try {
+                recognition.current.stop();
+                isRecognitionActiveRef.current = false;
+            } catch (error) {
+                console.error("Error stopping recognition:", error);
+            }
+        }
+    };
+
+    const safelyStartRecognition = () => {
+        if (recognition.current && !isRecognitionActiveRef.current && !isCancelledRef.current && !isPaused) {
+            try {
+                recognition.current.start();
+                isRecognitionActiveRef.current = true;
+                setStatus("Listening...");
+            } catch (error) {
+                console.error("Error starting recognition:", error);
+                isRecognitionActiveRef.current = false;
+            }
+        }
+    };
 
     // Initialize recognition and synthesis
     useEffect(() => {
@@ -48,6 +71,10 @@ export default function SpeakPage() {
         if (!SpeechRecognition) return;
 
         const initializeRecognition = () => {
+            if (recognition.current) {
+                safelyStopRecognition();
+            }
+
             recognition.current = new SpeechRecognition();
             recognition.current.continuous = true;
             recognition.current.interimResults = true;
@@ -62,61 +89,33 @@ export default function SpeakPage() {
 
             recognition.current.onerror = (event) => {
                 console.error("Speech recognition error:", event.error);
+                isRecognitionActiveRef.current = false;
                 
                 if (event.error === 'no-speech') {
-                    // Handle no speech detected
-                    restartRecognition();
+                    safelyStartRecognition();
                 } else if (event.error === 'network') {
-                    // Handle network errors
                     setStatus("Network error. Attempting to reconnect...");
-                    restartRecognition();
+                    safelyStartRecognition();
                 } else if (event.error !== 'aborted') {
                     setStatus("Error in speech recognition. Restarting...");
-                    restartRecognition();
+                    safelyStartRecognition();
                 }
             };
 
             recognition.current.onend = () => {
+                isRecognitionActiveRef.current = false;
                 if (!isCancelledRef.current && !isPaused && isRecording) {
-                    restartRecognition();
+                    safelyStartRecognition();
                 }
             };
-        };
-
-        const restartRecognition = () => {
-            if (recognition.current && !isCancelledRef.current && !isPaused && isRecording) {
-                try {
-                    recognition.current.stop();
-                } catch (error) {
-                    console.error("Error stopping recognition:", error);
-                }
-
-                setTimeout(() => {
-                    try {
-                        recognition.current.start();
-                        setStatus("Listening...");
-                    } catch (error) {
-                        console.error("Error restarting recognition:", error);
-                        // Re-initialize if starting fails
-                        initializeRecognition();
-                        recognition.current.start();
-                    }
-                }, 100);
-            }
         };
 
         initializeRecognition();
         
         return () => {
-            if (recognition.current) {
-                try {
-                    recognition.current.stop();
-                } catch (error) {
-                    console.error("Error stopping recognition on cleanup:", error);
-                }
-            }
+            safelyStopRecognition();
         };
-    }, [isRecording, isPaused]); 
+    }, [isRecording, isPaused]);
 
     // Handle recognition state changes
     useEffect(() => {
@@ -152,6 +151,7 @@ export default function SpeakPage() {
         };
     }, [transcript, isRecording, isProcessing]);
 
+    
     const processAndRespond = async (text) => {
         if (isCancelledRef.current) return;
         
@@ -159,14 +159,7 @@ export default function SpeakPage() {
             setIsProcessing(true);
             setStatus("Processing your message...");
             
-            // Temporarily stop recognition while processing
-            if (recognition.current) {
-                try {
-                    recognition.current.stop();
-                } catch (error) {
-                    console.error("Error stopping recognition:", error);
-                }
-            }
+            safelyStopRecognition();
 
             const response = await fetch("/api/generate", {
                 method: "POST",
@@ -177,8 +170,7 @@ export default function SpeakPage() {
             });
 
             if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+                throw new Error(`HTTP error! status: ${response.status}`);
             }
 
             const data = await response.json();
@@ -193,13 +185,8 @@ export default function SpeakPage() {
                         setStatus("Listening...");
                         setTranscript("");
                         
-                        // Restart recognition after response
                         if (isRecording && !isPaused) {
-                            try {
-                                recognition.current.start();
-                            } catch (error) {
-                                console.error("Error restarting recognition after response:", error);
-                            }
+                            safelyStartRecognition();
                         }
                     }
                 };
@@ -208,6 +195,10 @@ export default function SpeakPage() {
                     console.error("Speech synthesis error:", error);
                     setStatus("Error in speech synthesis. Please try again.");
                     setIsProcessing(false);
+                    
+                    if (isRecording && !isPaused) {
+                        safelyStartRecognition();
+                    }
                 };
 
                 synthesisRef.current.speak(utterance);
@@ -217,13 +208,8 @@ export default function SpeakPage() {
             setStatus("Error occurred. Please try again.");
             setIsProcessing(false);
             
-            // Restart recognition after error
             if (isRecording && !isPaused) {
-                try {
-                    recognition.current.start();
-                } catch (error) {
-                    console.error("Error restarting recognition after error:", error);
-                }
+                safelyStartRecognition();
             }
         }
     };
@@ -243,20 +229,12 @@ export default function SpeakPage() {
         speak(newStatus);
         setTranscript("");
 
-        try {
-            recognition.current.start();
-        } catch (error) {
-            console.error("Error starting recognition:", error);
-            // Re-initialize if starting fails
-            recognition.current = new SpeechRecognition();
-            recognition.current.continuous = true;
-            recognition.current.interimResults = true;
-            recognition.current.start();
-        }
+        safelyStartRecognition();
     };
     
     const pauseRecording = () => {
         setIsPaused(true);
+        safelyStopRecognition();
         const newStatus = "Recording paused";
         setStatus(newStatus);
         speak(newStatus);
@@ -267,14 +245,13 @@ export default function SpeakPage() {
         const newStatus = "Listening...";
         setStatus(newStatus);
         speak(newStatus);
+        safelyStartRecognition();
     };
 
     const stopRecording = () => {
         isCancelledRef.current = true;
+        safelyStopRecognition();
         
-        if (recognition.current) {
-            recognition.current.stop();
-        }
         if (synthesisRef.current) {
             synthesisRef.current.cancel();
         }
