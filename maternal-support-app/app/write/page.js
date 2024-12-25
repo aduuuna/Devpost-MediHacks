@@ -9,7 +9,6 @@ import {
     Button,
     Drawer,
     List,
-    ListItem,
     ListItemText,
     ListItemButton,
     Divider,
@@ -49,23 +48,18 @@ export default function WritePage() {
     const messagesEndRef = useRef(null);
 
     useEffect(() => {
-        if (user && !selectedChatId) {
-            startNewChat();
+        if (isLoaded && isSignedIn) {
+            loadUserChats();
         }
-    }, [user]);
+    }, [isLoaded, isSignedIn]);
 
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }, [chats, streamingText]);
 
-    useEffect(() => {
-        console.log("Current state:", {
-            selectedChatId,
-            user: user?.id,
-            db: !!db,
-            chats: chats.length
-        });
-    }, [selectedChatId, user, chats]);
+    if (!isLoaded || !isSignedIn) {
+        return null;
+    }
 
     
 
@@ -92,27 +86,42 @@ export default function WritePage() {
     };
 
     // This function is responsible for starting a new chat
+    const loadChat = async (chatId) => {
+        if (!chatId || !user) return;
+        
+        try {
+            const messagesQuery = query(collection(db, "chats", chatId, "messages"));
+            const querySnapshot = await getDocs(messagesQuery);
+            const chatMessages = [];
+            
+            querySnapshot.forEach((doc) => {
+                chatMessages.push(doc.data());
+            });
+            
+            setSelectedChatId(chatId);
+            setChats(chatMessages);
+        } catch (error) {
+            console.error("Error loading chat:", error);
+        }
+    };
 
     const startNewChat = async () => {
         if (!user) return;
-
+        
         try {
             const chatRef = await addDoc(collection(db, "chats"), {
                 userId: user.id,
                 title: "New Chat",
-                timestamp: new Date().toISOString(),
-                lastMessage: null
+                createdAt: new Date()
             });
             
             setSelectedChatId(chatRef.id);
             setChats([]);
-            
+            loadUserChats();
         } catch (error) {
             console.error("Chat creation error:", error);
         }
     };
-
-    
 
     // Loading user's chat History
 
@@ -152,25 +161,31 @@ export default function WritePage() {
 
     // This function loads a specific chat
 
-    const loadChat = async (chatId) => {
+    const loadUserChats = async () => {
         if (!user) return;
-
+        
         try {
-            // Get all messages for this chat
-            const messagesQuery = query(collection(db, "chats", chatId, "messages"));
-            const querySnapshot = await getDocs(messagesQuery);
+            const chatsQuery = query(
+                collection(db, "chats"),
+                where("userId", "==", user.id)
+            );
             
-            const messages = [];
+            const querySnapshot = await getDocs(chatsQuery);
+            const userChats = [];
+            
             querySnapshot.forEach((doc) => {
-                messages.push(doc.data());
+                userChats.push({
+                    id: doc.id,
+                    ...doc.data()
+                });
             });
-
-            setChats(messages);
-            setSelectedChatId(chatId);
+            
+            setChatHistory(userChats);
         } catch (error) {
-            console.error("Error loading messages:", error);
+            console.error("Error loading chats:", error);
         }
     };
+    
 
     // This function deletes a chat
 
@@ -239,50 +254,54 @@ export default function WritePage() {
     };
 
     // Modifing handleSendMessage function to store messages in Firebase
+    
     const handleSendMessage = async () => {
-        if (!selectedChatId) {
-            await startNewChat();
-        }
-        
         if (message.trim() === "" || isLoading || !user) return;
         setIsLoading(true);
         setIsStreaming(true);
         
         try {
+            let currentChatId = selectedChatId;
+            
+            if (!currentChatId) {
+                const chatRef = await addDoc(collection(db, "chats"), {
+                    userId: user.id,
+                    title: "New Chat",
+                    createdAt: new Date()
+                });
+                currentChatId = chatRef.id;
+                setSelectedChatId(currentChatId);
+            }
+
+            const messagesRef = collection(db, "chats", currentChatId, "messages");
+            
             const userMessage = {
                 text: message.trim(),
                 type: "user",
-                timestamp: new Date().toISOString()
+                timestamp: new Date()
             };
-
-            // Add user message to database
-            await addDoc(collection(db, "chats", selectedChatId, "messages"), userMessage);
+    
+            await addDoc(messagesRef, userMessage);
             setChats(prev => [...prev, userMessage]);
-            
-            // Generate and update chat title if this is the first message
+    
             if (chats.length === 0) {
                 const title = await generateChatTitle(message);
-                await updateDoc(doc(db, "chats", selectedChatId), { title });
-                setChatHistory(prev => 
-                    prev.map(chat => 
-                        chat.id === selectedChatId ? { ...chat, title } : chat
-                    )
-                );
+                await updateDoc(doc(db, "chats", currentChatId), { title });
+                loadUserChats();
             }
-
+    
             setMessage("");
             
-            // Handle AI response with streaming
             const aiResponse = await sendMessageToAI(message);
             const aiMessage = {
                 text: aiResponse,
                 type: "ai",
-                timestamp: new Date().toISOString()
+                timestamp: new Date()
             };
-
-            await addDoc(collection(db, "chats", selectedChatId, "messages"), aiMessage);
+    
+            await addDoc(messagesRef, aiMessage);
             setChats(prev => [...prev, aiMessage]);
-            
+    
         } catch (error) {
             console.error("Error:", error);
         } finally {
@@ -299,9 +318,6 @@ export default function WritePage() {
         }
     };
 
-    if (!isLoaded || !isSignedIn) {
-        return null;
-    }
 
     return (
         <Container 
@@ -367,7 +383,7 @@ export default function WritePage() {
                             >
                                 <ListItemText 
                                     primary={chat.title}
-                                    secondary={new Date(chat.timestamp?.seconds * 1000).toLocaleDateString()}
+                        
                                 />
                                 <IconButton
                                     onClick={(e) => {
