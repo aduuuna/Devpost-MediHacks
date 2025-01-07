@@ -127,52 +127,6 @@ export default function Home() {
         </Box>
       </Box>
 
-      {/* New Technology Stack Section */}
-      {/* <Box sx={{ mb: 6, px: 2 }}>
-        <Typography variant="h4" sx={{ 
-          textAlign: 'center', 
-          mb: 4,
-          color: "#4682B4",
-          fontWeight: "bold"
-        }}>
-          Powered by Cutting-Edge Technology
-        </Typography>
-        <Grid container spacing={3} justifyContent="center">
-          {[
-            { icon: <SmartToyIcon sx={{ fontSize: 40 }}/>, label: "Google Gemini AI", desc: "Advanced language model for accurate responses" },
-            { icon: <VolumeUpIcon sx={{ fontSize: 40 }}/>, label: "Text-to-Speech", desc: "Voice interaction for accessibility" },
-            { icon: <HealthAndSafetyIcon sx={{ fontSize: 40 }}/>, label: "Clerk Auth", desc: "Secure user authentication" },
-            { icon: <AccessibilityNewIcon sx={{ fontSize: 40 }}/>, label: "Accessibility", desc: "WCAG compliant design" }
-          ].map((tech, index) => (
-            <Grid item xs={12} sm={6} md={3} key={index}>
-              <Card sx={{
-                height: '100%',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                p: 2,
-                backgroundColor: 'rgb(255, 255, 255)',
-                border: '1px solid rgba(70, 130, 180, 0.1)',
-                boxShadow: '2px 2px 10px rgba(0,0,0,0.1)',
-              }}>
-                <Box sx={{ 
-                  color: "#4682B4",
-                  mb: 2,
-                }}>
-                  {tech.icon}
-                </Box>
-                <Typography variant="h6" sx={{ mb: 1, fontWeight: "bold" }}>
-                  {tech.label}
-                </Typography>
-                <Typography variant="body2" color="text.secondary" align="center">
-                  {tech.desc}
-                </Typography>
-              </Card>
-            </Grid>
-          ))}
-        </Grid>
-      </Box> */}
-
       {/* Enhanced Features Section - Added images */}
       <Box sx={{ mb: 6, px: 2 }}>
         <Typography variant="h4" sx={{ 

@@ -468,7 +468,7 @@ export default function WritePage() {
                                         }}
                                     >
                                         <Image
-                                            src={logo} // Replace with your image path
+                                            src={logo} 
                                             alt="AI Assistant"
                                             width={38}
                                             height={38}
