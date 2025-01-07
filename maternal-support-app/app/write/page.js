@@ -15,23 +15,20 @@ import {
     IconButton,
     useMediaQuery,
     useTheme,
+    CircularProgress,
+    Tooltip,
+    Avatar,
 } from "@mui/material";
 import SendIcon from '@mui/icons-material/Send';
 import MenuIcon from '@mui/icons-material/Menu';
 import CloseIcon from '@mui/icons-material/Close';
+import Image from 'next/image';
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline';
 import Navbar from '../components/Navbar';
-import { 
-    collection, 
-    addDoc, 
-    getDocs, 
-    query, 
-    where, 
-    deleteDoc,
-    doc,
-    getDoc,
-    updateDoc
-} from 'firebase/firestore';
+import { collection, addDoc, getDocs, query, where, deleteDoc, doc, getDoc, updateDoc } from 'firebase/firestore';
 import {db} from "../../firebase";
+import logo from "../../public/pregnant.png";
 
 export default function WritePage() {
     const { isLoaded, isSignedIn, user } = useUser();
@@ -270,7 +267,7 @@ export default function WritePage() {
 
     return (
         <Container 
-            maxWidth="100vw" 
+            maxWidth={false} 
             sx={{
                 minHeight: "100vh",
                 display: "flex",
@@ -282,89 +279,142 @@ export default function WritePage() {
         >
             <Navbar />
 
-            {/* Main Chat Interface */}
             <Box sx={{
                 display: "flex",
                 height: "calc(100vh - 64px)",
                 mt: 8,
+                backgroundColor: "#F8F9FA",
             }}>
-                {/* Sidebar */}
+                {/* Enhanced Sidebar */}
                 <Drawer
                     variant={isMobile ? "temporary" : "permanent"}
                     open={isMobile ? isSidebarOpen : true}
                     onClose={() => setIsSidebarOpen(false)}
                     sx={{
-                        width: 280,
+                        width: 300,
                         flexShrink: 0,
                         '& .MuiDrawer-paper': {
-                            width: 280,
+                            width: 300,
                             boxSizing: 'border-box',
-                            mt: "80px",
-                            ml:'20px',
-                            borderRadius: "1rem",
+                            mt: "64px",
                             backgroundColor: "#FFFFFF",
-                            borderRight: "1px solid rgba(0, 0, 0, 0.12)",
+                            borderRight: "none",
+                            boxShadow: "0 4px 12px rgba(0,0,0,0.05)",
                         },
                     }}
                 >
-                    <Box sx={{ p: 2, display: "flex", flexDirection: "row", justifyContent: "space-between" }}>
-                        <Typography variant="h6" sx={{ color: "#4682B4", fontWeight: "bold" }}>
-                            Chat History
-                        </Typography>
+                    <Box sx={{ 
+                        p: 3, 
+                        display: "flex", 
+                        flexDirection: "column", 
+                        gap: 2 
+                    }}>
                         <Button
                             onClick={startNewChat}
                             variant="contained"
+                            fullWidth
+                            startIcon={<ChatBubbleOutlineIcon />}
                             sx={{
                                 backgroundColor: "#4682B4",
-                                '&:hover': { backgroundColor: "#D87093" }
+                                py: 1.5,
+                                borderRadius: "12px",
+                                textTransform: "none",
+                                fontSize: "1rem",
+                                fontWeight: 600,
+                                '&:hover': { 
+                                    backgroundColor: "#D87093",
+                                    transform: "translateY(-2px)",
+                                    transition: "all 0.2s ease-in-out",
+                                }
                             }}
                         >
-                            New Chat
+                            Start New Chat
                         </Button>
+                        
+                        <Typography variant="h6" sx={{ 
+                            color: "#1A1A1A", 
+                            fontWeight: "600",
+                            fontSize: "1.1rem",
+                            mt: 2 
+                        }}>
+                            Recent Chats
+                        </Typography>
                     </Box>
-                    <Divider />
-                    <List>
+                    <List sx={{ px: 2 }}>
                         {chatHistory.map((chat) => (
                             <ListItemButton 
                                 key={chat.id}
                                 selected={selectedChatId === chat.id}
                                 onClick={() => loadChat(chat.id)}
+                                sx={{
+                                    borderRadius: "10px",
+                                    mb: 1,
+                                    '&.Mui-selected': {
+                                        backgroundColor: '#EBF5FF',
+                                        '&:hover': {
+                                            backgroundColor: '#E3F0FF',
+                                        }
+                                    },
+                                    '&:hover': {
+                                        backgroundColor: '#F5F5F5',
+                                    }
+                                }}
                             >
                                 <ListItemText 
                                     primary={chat.title}
-                        
+                                    primaryTypographyProps={{
+                                        sx: {
+                                            fontWeight: selectedChatId === chat.id ? 600 : 400,
+                                            color: "#2C2C2C",
+                                            fontSize: "0.95rem",
+                                        }
+                                    }}
                                 />
-                                <IconButton
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        deleteChat(chat.id);
-                                    }}
-                                    sx={{
-                                        color: 'error.main',
-                                        '&:hover': { backgroundColor: 'error.light' }
-                                    }}
-                                >
-                                    <CloseIcon />
-                                </IconButton>
+                                <Tooltip title="Delete chat">
+                                    <IconButton
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            deleteChat(chat.id);
+                                        }}
+                                        sx={{
+                                            color: '#666',
+                                            '&:hover': { 
+                                                color: '#ff4444',
+                                                backgroundColor: 'rgba(255,68,68,0.1)' 
+                                            }
+                                        }}
+                                    >
+                                        <DeleteOutlineIcon fontSize="small" />
+                                    </IconButton>
+                                </Tooltip>
                             </ListItemButton>
                         ))}
                     </List>
                 </Drawer>
 
-                {/* Chat Area */}
+                {/* Enhanced Chat Area */}
                 <Box sx={{
                     flexGrow: 1,
                     display: "flex",
                     flexDirection: "column",
                     width: "100%",
-                    p: 2,
-                    ml: isMobile ? 0 : "280px",
+                    ml: isMobile ? 0 : "300px",
+                    position: "relative",
                 }}>
                     {/* Mobile Menu Button */}
                     {isMobile && (
                         <IconButton
                             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                            sx={{ position: 'absolute', left: 16, top: 80 }}
+                            sx={{ 
+                                position: 'absolute', 
+                                left: 16, 
+                                top: 16,
+                                backgroundColor: "white",
+                                boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+                                '&:hover': {
+                                    backgroundColor: "#F5F5F5"
+                                }
+                            }}
                         >
                             <MenuIcon />
                         </IconButton>
@@ -376,94 +426,192 @@ export default function WritePage() {
                         overflowY: "auto",
                         display: "flex",
                         flexDirection: "column",
-                        gap: 2,
-                        mb: 2,
-                        p: 2,
+                        gap: 3,
+                        p: 4,
+                        pb: 2,
                     }}>
+                        {chats.length === 0 && !isStreaming && (
+                            <Box sx={{
+                                display: "flex",
+                                flexDirection: "column",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                height: "100%",
+                                gap: 2,
+                                color: "#666",
+                            }}>
+                                <ChatBubbleOutlineIcon sx={{ fontSize: 48, color: "#4682B4" }} />
+                                <Typography variant="h6">Start a New Conversation</Typography>
+                                <Typography variant="body2" color="text.secondary">
+                                    Type a message below to begin chatting
+                                </Typography>
+                            </Box>
+                        )}
+                        
                         {chats.map((chat, index) => (
                             <Box
                                 key={index}
                                 sx={{
-                                    alignSelf: chat.type === "user" ? "flex-end" : "flex-start",
-                                    maxWidth: "70%",
+                                    display: "flex",
+                                    flexDirection: chat.type === "user" ? "row-reverse" : "row",
+                                    gap: 2,
+                                    alignItems: "flex-start",
                                 }}
                             >
+                                
+                                {chat.type === "ai" && (
+                                    <Avatar 
+                                        sx={{ 
+                                            width: 38,
+                                            height: 38,
+                                            p: 0, 
+                                        }}
+                                    >
+                                        <Image
+                                            src={logo} // Replace with your image path
+                                            alt="AI Assistant"
+                                            width={38}
+                                            height={38}
+                                            style={{
+                                                width: '100%',
+                                                height: '100%',
+                                                objectFit: 'cover',
+                                            }}
+                                        />
+                                    </Avatar>
+                                )}
                                 <Box sx={{
-                                    backgroundColor: chat.type === "user" ? "#4682B4" : "#F0F2F5",
-                                    color: chat.type === "user" ? "white" : "black",
-                                    borderRadius: "1rem",
-                                    p: 2,
-                                    boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+                                    maxWidth: "70%",
+                                    display: "flex",
+                                    flexDirection: "column",
+                                    gap: 0.5,
                                 }}>
-                                    <Typography>{chat.text}</Typography>
+                                    <Box sx={{
+                                        backgroundColor: chat.type === "user" ? "#4682B4" : "white",
+                                        color: chat.type === "user" ? "white" : "#2C2C2C",
+                                        borderRadius: "16px",
+                                        p: 2,
+                                        boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
+                                    }}>
+                                        <Typography sx={{ 
+                                            lineHeight: 1.6,
+                                            fontSize: "0.95rem",
+                                        }}>
+                                            {chat.text}
+                                        </Typography>
+                                    </Box>
+                                    <Typography 
+                                        variant="caption" 
+                                        sx={{ 
+                                            color: "#666",
+                                            alignSelf: chat.type === "user" ? "flex-end" : "flex-start",
+                                        }}
+                                    >
+                                        {new Date(chat.timestamp).toLocaleTimeString([], {
+                                            hour: '2-digit',
+                                            minute: '2-digit'
+                                        })}
+                                    </Typography>
                                 </Box>
-                                <Typography variant="caption" sx={{ 
-                                    color: "#666",
-                                    mt: 0.5,
-                                    display: "block",
-                                    textAlign: chat.type === "user" ? "right" : "left"
-                                }}>
-                                    {new Date(chat.timestamp).toLocaleTimeString()}
-                                </Typography>
                             </Box>
                         ))}
+                        
                         {isStreaming && (
                             <Box sx={{
-                                alignSelf: "flex-start",
-                                maxWidth: "70%",
+                                display: "flex",
+                                gap: 2,
+                                alignItems: "flex-start",
                             }}>
+                                <Avatar sx={{ p: 0, width: 38, height: 38 }}>
+                                    <Image
+                                        src= {logo} 
+                                        alt="AI Assistant"
+                                        width={38}
+                                        height={38}
+                                        style={{
+                                            width: '100%',
+                                            height: '100%',
+                                            objectFit: 'cover',
+                                        }}
+                                    />
+                                </Avatar>
                                 <Box sx={{
-                                    backgroundColor: "#F0F2F5",
-                                    borderRadius: "1rem",
+                                    backgroundColor: "white",
+                                    borderRadius: "16px",
                                     p: 2,
-                                    boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+                                    maxWidth: "70%",
+                                    boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
                                 }}>
-                                    <Typography>{streamingText}</Typography>
+                                    <Typography sx={{ lineHeight: 1.6 }}>
+                                        {streamingText}
+                                    </Typography>
                                 </Box>
                             </Box>
                         )}
                         <div ref={messagesEndRef} />
                     </Box>
                     
-                    {/* Input Area */}
+                    {/* Enhanced Input Area */}
                     <Box sx={{
-                        display: "flex",
-                        gap: 2,
-                        p: 2,
+                        p: 3,
                         backgroundColor: "white",
-                        borderRadius: "1rem",
-                        boxShadow: "0 -2px 10px rgba(0,0,0,0.05)",
+                        borderTop: "1px solid rgba(0,0,0,0.05)",
                     }}>
-                        <TextField
-                            fullWidth
-                            multiline
-                            maxRows={4}
-                            value={message}
-                            onChange={(e) => setMessage(e.target.value)}
-                            onKeyPress={handleKeyPress}
-                            placeholder="Type your message..."
-                            variant="outlined"
-                            sx={{
-                                '& .MuiOutlinedInput-root': {
-                                    borderRadius: '0.8rem',
-                                }
-                            }}
-                        />
-                        <Button
-                            variant="contained"
-                            onClick={handleSendMessage}
-                            sx={{
-                                borderRadius: '0.8rem',
-                                backgroundColor: "#4682B4",
-                                minWidth: '64px',
-                                height: '56px',
-                                '&:hover': {
-                                    backgroundColor: "#D87093",
-                                }
-                            }}
-                        >
-                            <SendIcon />
-                        </Button>
+                        <Box sx={{
+                            display: "flex",
+                            gap: 2,
+                            maxWidth: "900px",
+                            margin: "0 auto",
+                        }}>
+                            <TextField
+                                fullWidth
+                                multiline
+                                maxRows={4}
+                                value={message}
+                                onChange={(e) => setMessage(e.target.value)}
+                                onKeyPress={handleKeyPress}
+                                placeholder="Type your message..."
+                                variant="outlined"
+                                disabled={isLoading}
+                                sx={{
+                                    '& .MuiOutlinedInput-root': {
+                                        borderRadius: '12px',
+                                        backgroundColor: '#F8F9FA',
+                                        '&:hover': {
+                                            backgroundColor: '#F0F2F5',
+                                        },
+                                        '&.Mui-focused': {
+                                            backgroundColor: '#FFFFFF',
+                                        }
+                                    }
+                                }}
+                            />
+                            <Button
+                                variant="contained"
+                                onClick={handleSendMessage}
+                                disabled={isLoading || message.trim() === ""}
+                                sx={{
+                                    borderRadius: '12px',
+                                    backgroundColor: "#4682B4",
+                                    minWidth: '56px',
+                                    height: '56px',
+                                    '&:hover': {
+                                        backgroundColor: "#D87093",
+                                        transform: "translateY(-2px)",
+                                        transition: "all 0.2s ease-in-out",
+                                    },
+                                    '&.Mui-disabled': {
+                                        backgroundColor: '#E0E0E0',
+                                    }
+                                }}
+                            >
+                                {isLoading ? (
+                                    <CircularProgress size={24} color="inherit" />
+                                ) : (
+                                    <SendIcon />
+                                )}
+                            </Button>
+                        </Box>
                     </Box>
                 </Box>
             </Box>
