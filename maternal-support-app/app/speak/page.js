@@ -42,6 +42,7 @@ export default function SpeakPage() {
     const silenceTimeoutRef = useRef(null);
     const isCancelledRef = useRef(false);
     const isRecognitionActiveRef = useRef(false);
+    const [pausedTranscript, setPausedTranscript] = useState("");
     
     const [isInConversation, setIsInConversation] = useState(false);
     const [lastResponseTime, setLastResponseTime] = useState(null);
@@ -450,11 +451,15 @@ export default function SpeakPage() {
     };
     
     const pauseRecording = () => {
+        // Store current transcript before pausing
+        if (transcript.trim()) {
+            setPausedTranscript(transcript);
+        }
+        
         setIsPaused(true);
         setStatus("Recording paused");
-        speak("Recording paused");
         
-        // Ensure recognition is stopped
+        // Stop recognition
         safelyStopRecognition();
         
         // Clear any ongoing timeouts
@@ -462,25 +467,39 @@ export default function SpeakPage() {
             clearTimeout(silenceTimeoutRef.current);
         }
         
-        // Cancel any ongoing speech
+        // Cancel any ongoing speech and speak pause message
         if (synthesisRef.current) {
             synthesisRef.current.cancel();
+            const utterance = new SpeechSynthesisUtterance("Recording paused");
+            utterance.onend = () => {
+                // Don't restart recognition after speaking pause message
+                setStatus("Recording paused - Click resume to continue");
+            };
+            synthesisRef.current.speak(utterance);
         }
     };
 
     const resumeRecording = () => {
         setIsPaused(false);
-        const newStatus = "Listening...";
+        const newStatus = "Resuming recording...";
         setStatus(newStatus);
-        speak(newStatus);
+        
+        // Restore paused transcript if it exists
+        if (pausedTranscript) {
+            setTranscript(pausedTranscript);
+        }
         
         // Wait for the speech to finish before starting recognition
         if (synthesisRef.current) {
+            synthesisRef.current.cancel(); // Cancel any ongoing speech
             const utterance = new SpeechSynthesisUtterance(newStatus);
             utterance.onend = () => {
+                setStatus("Listening...");
                 if (!isRecognitionActive) {
                     safelyStartRecognition();
                 }
+                // Clear paused transcript after successfully resuming
+                setPausedTranscript("");
             };
             synthesisRef.current.speak(utterance);
         }
@@ -490,6 +509,7 @@ export default function SpeakPage() {
         isCancelledRef.current = true;
         safelyStopRecognition();
         
+        // Clear all states
         if (synthesisRef.current) {
             synthesisRef.current.cancel();
         }
@@ -500,14 +520,32 @@ export default function SpeakPage() {
         setIsRecording(false);
         setIsPaused(false);
         setIsProcessing(false);
-
-        const goodbyeMessage = goodbyeMessages[Math.floor(Math.random() * goodbyeMessages.length)];
-        speak(goodbyeMessage);
+        setPausedTranscript(""); // Clear any stored paused transcript
         
-        setStatus("Click on the mic to start recording");
-        setTranscript("");
+        const goodbyeMessage = goodbyeMessages[Math.floor(Math.random() * goodbyeMessages.length)];
+        
+        // Speak goodbye message
+        if (synthesisRef.current) {
+            const utterance = new SpeechSynthesisUtterance(goodbyeMessage);
+            utterance.onend = () => {
+                setStatus("Click on the mic to start recording");
+                setTranscript("");
+            };
+            synthesisRef.current.speak(utterance);
+        }
     };
 
+    useEffect(() => {
+        if (isPaused) {
+            safelyStopRecognition();
+        } else if (isRecording && !isProcessing) {
+            // Small delay before restarting recognition when unpausing
+            setTimeout(() => {
+                safelyStartRecognition();
+            }, 500);
+        }
+    }, [isPaused]);
+    
     return (
         <Container 
             maxWidth={false} 
