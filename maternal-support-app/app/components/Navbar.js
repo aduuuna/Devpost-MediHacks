@@ -52,8 +52,8 @@ export default function Navbar() {
             width={24} 
             height={24} 
             style={{ 
-              width: 'auto',
-              height: 'auto',
+              width: '24px',
+              height: '24px',
               flexShrink: 0,
             }}
           />

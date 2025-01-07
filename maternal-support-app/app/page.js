@@ -128,7 +128,7 @@ export default function Home() {
       </Box>
 
       {/* New Technology Stack Section */}
-      <Box sx={{ mb: 6, px: 2 }}>
+      {/* <Box sx={{ mb: 6, px: 2 }}>
         <Typography variant="h4" sx={{ 
           textAlign: 'center', 
           mb: 4,
@@ -171,7 +171,7 @@ export default function Home() {
             </Grid>
           ))}
         </Grid>
-      </Box>
+      </Box> */}
 
       {/* Enhanced Features Section - Added images */}
       <Box sx={{ mb: 6, px: 2 }}>
